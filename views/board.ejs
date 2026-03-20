@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/style.css">
+
+<script src="/socket.io/socket.io.js"></script> 
+
+<style>
+  /* Move List Styling */
+  .move-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid #333;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .move-row:nth-child(even) {
+    background-color: #2a2a2a;
+  }
+  .move-number {
+    width: 30px;
+    color: #888;
+    font-weight: bold;
+  }
+  .move-san {
+    flex: 1;
+    text-align: center;
+    cursor: pointer;
+    color: #e8e6e3;
+    transition: color 0.2s;
+  }
+  .move-san:hover, .move-san.active {
+    color: #f39c12;
+    font-weight: bold;
+  }
+  .move-san.empty {
+    cursor: default;
+  }
+</style>
+
+
+</head>
+<body>
+
+<div class="game-wrapper">
+
+  <div class="board-section">
+    <div class="player-bar">
+      <div class="player-avatar black">♟</div>
+      <div class="player-info">
+        <h3 id="black-player-name">Black</h3>
+        <div class="material-score">
+          <span id="captured-by-black" class="captured-pieces"></span>
+          <span id="score-black" class="score-diff"></span>
+        </div>
+      </div>
+      <div class="clock" id="clock-black">10:00</div>
+    </div>
+
+    <div class="board-outer">
+      <div class="coords-col" id="rank-coords"></div>
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+        <div class="coords-row" id="file-coords"></div>
+      </div>
+    </div>
+
+    <div class="player-bar">
+      <div class="player-avatar white">♙</div>
+      <div class="player-info">
+        <h3 id="white-player-name">White</h3>
+        <div class="material-score">
+          <span id="captured-by-white" class="captured-pieces"></span>
+          <span id="score-white" class="score-diff"></span>
+        </div>
+      </div>
+      <div class="clock" id="clock-white">10:00</div>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <div class="status-bar" id="status-bar">
+      <div class="status-dot"></div>
+      White's turn
+    </div>
+
+    <div class="panel-card flex-card">
+      <div class="panel-title">Moves</div>
+      <div class="move-list" id="move-list"></div>
+      <div class="nav-row">
+        <button class="nav-btn" id="btn-first" title="Start">⏮</button>
+        <button class="nav-btn" id="btn-prev"  title="Previous">◀</button>
+        <button class="nav-btn" id="btn-next"  title="Next">▶</button>
+        <button class="nav-btn" id="btn-last"  title="End">⏭</button>
+      </div>
+    </div>
+
+    <div class="panel-card flex-card">
+      <div class="panel-title">Live Chat</div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Type a message...">
+        <button class="btn primary" id="btn-send-chat" style="padding: 0 12px;">Send</button>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="btn-row">
+        <button class="btn danger" id="btn-resign" style="width: 100%; font-weight: bold;">Resign</button>
+      </div>
+    </div>
+
+    <div id="result-card" class="hidden">
+      <div class="win-banner" id="win-banner">
+        <div class="win-banner-title" id="win-title">White wins!</div>
+        <div class="win-banner-sub" id="win-sub">by checkmate</div>
+        <button class="btn" id="btn-rematch" style="margin-top: 12px; width: 100%; background: rgba(255,255,255,0.2); color: white; border: none;">Request Rematch</button>
+        <button class="btn primary" onclick="window.location.href='/dashboard'" style="margin-top: 10px; width: 100%; font-weight: bold;">Back to Dashboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="promo-modal">
+  <div class="modal">
+    <h3>Choose promotion</h3>
+    <div class="promo-pieces" id="promo-pieces"></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="waiting-modal">
+  <div class="modal" style="padding: 40px;">
+    <h3>Waiting for Opponent...</h3>
+    <p style="color: #aaa; margin-top: 10px;">Share this room code:</p>
+    <h1 id="room-code-display" style="letter-spacing: 5px; color: #7fa650; margin-top: 10px;"></h1>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="reconnect-modal" style="z-index: 999; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;">
+  <div class="modal" style="padding: 40px; background: #222; border-radius: 10px; text-align: center;">
+    <h2 style="color: #e74c3c;">Opponent Disconnected!</h2>
+    <p style="color: #aaa; margin-top: 10px;">They have 60 seconds to return before forfeiting.</p>
+    <h1 id="reconnect-timer" style="font-size: 3rem; margin-top: 20px; color: #f39c12;">60</h1>
+  </div>
+</div>
+
+<script>
+    // EJS injects the MongoDB username here before the page loads!
+    const myUsername = "<%= username %>";
+</script>
+
+<script src="/public/js/pieces.js"></script>
+<script src="/public/js/chess.js"></script>
+</body>
+</html>

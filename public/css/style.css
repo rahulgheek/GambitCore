@@ -1,0 +1,489 @@
+/* ============================================================
+   CHESS.CSS  –  Responsive Chess UI
+   Variables drive every dimension; JS writes --sq to body.
+   ============================================================ */
+
+:root {
+  --sq: 72px;           /* overridden by JS on resize */
+  --piece: 0.86;        /* piece = sq * piece-scale */
+  --board: calc(var(--sq) * 8);
+
+  /* colours */
+  --bg:               #1a1a1a;
+  --panel:            #242424;
+  --border:           #333;
+  --light-sq:         #f0d9b5;
+  --dark-sq:          #b58863;
+  --last-light:       #cdd26a;
+  --last-dark:        #aaa23a;
+  --selected-light:   #7fc97f;
+  --selected-dark:    #5aaa5a;
+  --move-dot:         rgba(0,0,0,0.25);
+  --capture-ring:     rgba(0,0,0,0.35);
+  --accent:           #7fa650;
+  --text:             #e8e6e3;
+  --muted:            #888;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ── Layout ── */
+.game-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  max-width: 100vw;
+}
+
+.board-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Player bar ── */
+.player-bar {
+  width: var(--board);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+}
+
+.player-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 600;
+  flex-shrink: 0;
+}
+.player-avatar.white { background:#f0d9b5; color:#333; }
+.player-avatar.black { background:#2a2a2a; color:#ddd; border:1px solid #555; }
+
+.player-info { flex:1; min-width:0; }
+.player-name  { font-size:13px; font-weight:500; }
+
+.material-score { display:flex; align-items:center; flex-wrap:wrap; gap:0; }
+.captured-pieces { font-size:12px; opacity:.7; min-height:16px; }
+.score-diff { font-size:11px; color:var(--accent); font-weight:700; margin-left:4px; }
+
+.clock {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: clamp(13px, 1.6vw, 18px);
+  font-family: 'Playfair Display', serif;
+  letter-spacing: 1px;
+  min-width: 70px;
+  text-align: center;
+  transition: background .2s, color .2s, border-color .2s;
+  flex-shrink: 0;
+}
+.clock.active { background:var(--text); color:#1a1a1a; border-color:var(--text); }
+.clock.low    { background:#c0392b; color:#fff; border-color:#c0392b; }
+
+/* ── Board outer (coords + board) ── */
+.board-outer {
+  display: flex;
+  align-items: stretch;
+}
+
+.coords-col {
+  display: flex;
+  flex-direction: column;
+  width: 18px;
+  flex-shrink: 0;
+}
+.coords-col .coord { flex:1; }
+
+.board-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.coords-row {
+  display: flex;
+  height: 18px;
+}
+.coords-row .coord { flex:1; }
+
+.coord {
+  font-size: clamp(8px, 0.9vw, 11px);
+  font-weight: 500;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Board ── */
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, var(--sq));
+  grid-template-rows:    repeat(8, var(--sq));
+  border: 2px solid #444;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 16px 50px rgba(0,0,0,.6);
+  flex-shrink: 0;
+}
+
+/* ── Square ── */
+.square {
+  width:  var(--sq);
+  height: var(--sq);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.square.light { background: var(--light-sq); }
+.square.dark  { background: var(--dark-sq); }
+
+.square.last-light { background: var(--last-light); }
+.square.last-dark  { background: var(--last-dark); }
+
+.square.selected       { background: var(--selected-light) !important; }
+.square.selected.dark  { background: var(--selected-dark)  !important; }
+
+/* Check glow */
+.square.in-check::after {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(circle, rgba(220,50,50,.85) 0%, transparent 68%);
+  pointer-events:none;
+}
+
+/* Move-hint dot */
+.square.can-move::before {
+  content:'';
+  position: absolute;
+  width:  calc(var(--sq) * 0.33);
+  height: calc(var(--sq) * 0.33);
+  border-radius: 50%;
+  background: var(--move-dot);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Capture ring */
+.square.can-capture::before {
+  content:'';
+  position: absolute; inset:0;
+  border-radius: 50%;
+  background: transparent;
+  border: calc(var(--sq) * 0.1) solid var(--capture-ring);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Piece ── */
+.piece {
+  width:  calc(var(--sq) * 0.87);
+  height: calc(var(--sq) * 0.87);
+  user-select: none;
+  position: relative; z-index: 3;
+  transition: transform .1s;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
+}
+.piece svg {
+  width:  100%;
+  height: 100%;
+}
+.piece:hover { transform: scale(1.07); }
+
+/* ── Analysis overlay ── */
+.analysis-mode .board { outline: 2px solid #f39c12; }
+
+/* ── Side panel ── */
+/* ── Side panel & Flex Restraints ── */
+.side-panel {
+  width: clamp(220px, 22vw, 280px);
+  /* Force the panel to be exactly as tall as the chessboard */
+  height: calc(var(--sq) * 8 + 100px); 
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.panel-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+/* New classes to make panels share space and scroll inside! */
+.flex-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1; 
+  min-height: 0; /* CRITICAL: Allows flex children to shrink and scroll */
+}
+
+/* Move list */
+.move-list {
+  flex: 1; /* Fills remaining space in the card */
+  overflow-y: auto;
+  font-size: 12px;
+  padding-right: 4px;
+}
+/* Override old max-height if it exists */
+.move-list { max-height: none !important; }
+
+/* ── Chat UI ── */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-right: 5px;
+  font-size: 12.5px;
+}
+.chat-bubble {
+  background: rgba(255,255,255,0.06);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-bottom-left-radius: 2px;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.chat-input-row { display: flex; gap: 6px; }
+.chat-input-row input {
+  flex: 1; padding: 8px; background: #1a1a1a; border: 1px solid #444; color: white; border-radius: 6px; outline: none; transition: border 0.2s;
+}
+.chat-input-row input:focus { border-color: var(--accent); }
+
+/* Move list */
+.move-list {
+  max-height: 36vh;
+  overflow-y: auto;
+  font-size: 12px;
+}
+.move-list::-webkit-scrollbar       { width:3px; }
+.move-list::-webkit-scrollbar-track { background:transparent; }
+.move-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+.move-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 1fr;
+  gap: 2px;
+  padding: 2px 0;
+  border-radius: 4px;
+}
+.move-row:hover { background: rgba(255,255,255,.05); }
+
+.move-num  { color:var(--muted); font-size:11px; padding-top:2px; }
+
+.move-item {
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background .1s, color .1s;
+}
+.move-item:hover  { background: rgba(255,255,255,.09); }
+.move-item.active { background: rgba(127,166,80,.3); color:#a8d070; font-weight:600; }
+
+/* Nav row */
+.nav-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  justify-content: space-between;
+}
+
+.nav-btn {
+  flex: 1;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background .15s;
+}
+.nav-btn:hover { background: rgba(255,255,255,.07); }
+
+/* Buttons */
+.btn-row { display:flex; gap:6px; }
+
+.btn {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn:hover        { background: rgba(255,255,255,.07); border-color:#555; }
+.btn.primary      { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+.btn.primary:hover{ background:#8fb85a; border-color:#8fb85a; }
+.btn.danger       { border-color:#c0392b; color:#e74c3c; }
+.btn.danger:hover { background: rgba(192,57,43,.15); }
+
+/* Status bar */
+.status-bar {
+  text-align: center;
+  padding: 9px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 7px;
+}
+
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.5s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:.25; }
+}
+
+/* Result card */
+.win-banner {
+  background: linear-gradient(135deg, #2d5a1e, #3d7a28);
+  border: 1px solid #5aaa30;
+  padding: 14px;
+  border-radius: 10px;
+  text-align: center;
+}
+.win-banner.draw {
+  background: linear-gradient(135deg, #2a2a4a, #3a3a5a);
+  border-color: #555;
+}
+.win-banner-title { font-family:'Playfair Display',serif; font-size:17px; font-weight:700; }
+.win-banner-sub   { font-size:12px; opacity:.8; margin-top:3px; }
+
+/* Promotion modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5);
+}
+.modal h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+.promo-pieces { display:flex; gap:8px; justify-content:center; }
+
+.promo-piece {
+  width: 72px; height: 72px;
+  background: rgba(255,255,255,.05);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.4));
+}
+.promo-piece svg { width:52px; height:52px; }
+.promo-piece:hover {
+  background: rgba(127,166,80,.2);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.hidden { display:none !important; }
+
+/* ── Responsive: stack vertically on small screens ── */
+@media (max-width: 680px) {
+  body { align-items: flex-start; overflow-y: auto; overflow-x: hidden; }
+  .game-wrapper {
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    gap: 10px;
+  }
+  .side-panel {
+    width: var(--board);
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .panel-card { flex: 1 1 140px; }
+  .status-bar { width: 100%; }
+  .move-list { max-height: 22vh; }
+}
+
+/* ============================================================
+   RESPONSIVE DESIGN (Mobile & Tablet)
+   ============================================================ */
+@media (max-width: 768px) {
+  body {
+    /* Allow scrolling on mobile instead of locking the screen */
+    overflow-y: auto;
+    align-items: flex-start; 
+    padding: 20px 0;
+  }
+
+  .game-wrapper {
+    flex-direction: column; /* Stack the board and panel */
+    width: 100%;
+    padding: 10px;
+    gap: 24px;
+  }
+
+  .side-panel {
+    width: 100%;
+    max-width: 100%; /* Let it fill the screen under the board */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .move-list {
+    max-height: 140px; /* Make move list shorter on mobile so it doesn't take up the whole screen */
+  }
+
+  .player-bar {
+    width: 100%;
+    max-width: calc(var(--sq) * 8); /* Keep player bars aligned with the board */
+  }
+}
+

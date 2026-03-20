@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Matchmaking - GambitCore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <style>
+        /* --- GAMBITCORE OFFICIAL THEME --- */
+        :root {
+            --bg: #1a1a1a;
+            --card-bg: #262421;
+            --card-inner: #1e1c1a;
+            --border: #3c3a38;
+            --accent: #81b64c;
+            --accent-glow: rgba(129, 182, 76, 0.3);
+            --text-main: #ffffff;
+            --text-muted: #aaa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background-color: var(--bg); color: var(--text-main); 
+            font-family: 'Nunito', sans-serif; display: flex; flex-direction: column; 
+            min-height: 100vh; overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 0%, #2a2a2a 0%, #1a1a1a 70%);
+        }
+
+        /* --- GLASS NAVBAR --- */
+        .glass-nav {
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 40px; background: rgba(26, 26, 26, 0.7);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 900; color: white; text-decoration: none; display: flex; align-items: center; gap: 8px; }
+        .logo-icon { color: var(--accent); font-size: 2rem; }
+        .nav-profile { font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); }
+
+        /* --- BACKGROUND MAGIC --- */
+        .floating-piece { position: absolute; font-size: 8rem; color: rgba(255,255,255,0.02); z-index: -1; user-select: none; pointer-events: none; }
+
+        /* --- HIERARCHICAL GRID LAYOUT --- */
+        .hub-container { 
+            display: grid; grid-template-columns: 1fr 1fr; max-width: 900px; 
+            margin: 120px auto 40px; gap: 25px; padding: 0 20px; position: relative; z-index: 10;
+        }
+        
+        .card { 
+            background: var(--card-bg); padding: 35px; border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 1px solid var(--border);
+            position: relative; overflow: hidden;
+        }
+
+        /* Span the top card across both columns */
+        .card-primary { grid-column: span 2; text-align: center; }
+        .card-secondary { grid-column: span 1; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+
+        .card-title { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 900; margin-bottom: 10px; }
+        .card-sub { color: var(--text-muted); font-size: 1rem; font-weight: 600; margin-bottom: 25px; }
+
+        /* --- TIME CONTROL GRID --- */
+        .time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .time-btn {
+            background: var(--card-inner); border: 2px solid var(--border); border-radius: 12px; 
+            padding: 20px 10px; text-align: center; cursor: pointer; transition: all 0.3s ease;
+        }
+        .time-btn:hover { border-color: #555; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .time-btn.active { 
+            background: rgba(129, 182, 76, 0.1); border-color: var(--accent); 
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        
+        /* 🚨 BUG FIX: Safe Opacity for Emojis */
+        .time-icon { font-size: 2.2rem; display: block; margin-bottom: 8px; transition: transform 0.3s, opacity 0.3s; opacity: 0.4; }
+        .time-btn.active .time-icon { opacity: 1; transform: scale(1.2); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        
+        .time-label { font-weight: 800; font-size: 1.1rem; font-family: 'Montserrat', sans-serif; }
+
+        /* --- BUTTONS --- */
+        .btn-play {
+            background-color: var(--accent); color: white; border: none; padding: 18px; 
+            width: 100%; font-size: 1.4rem; font-family: 'Montserrat', sans-serif; font-weight: 900; 
+            border-radius: 12px; cursor: pointer; box-shadow: 0 6px 0 #537a31; transition: all 0.1s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-play:active { transform: translateY(6px); box-shadow: 0 0px 0 #537a31; }
+
+        .btn-custom {
+            background: var(--card-inner); color: var(--text-main); border: 1px solid var(--border); 
+            padding: 16px; width: 100%; border-radius: 10px; font-weight: 800; font-size: 1.1rem; 
+            cursor: pointer; transition: 0.2s; font-family: 'Montserrat';
+        }
+        .btn-custom:hover { background: #333; border-color: #555; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        
+        /* --- INPUTS --- */
+        .join-input {
+            background: var(--card-inner); border: 1px solid var(--border); padding: 15px; 
+            color: white; border-radius: 10px; width: 100%; text-align: center; 
+            font-family: monospace; font-size: 1.1rem; letter-spacing: 1px; 
+            margin-bottom: 15px; transition: border 0.2s; outline: none;
+        }
+        .join-input:focus { border-color: var(--accent); }
+
+        /* --- QUEUE RADAR ANIMATION --- */
+        #queue-ui { display: none; text-align: center; padding: 20px 0; }
+        .radar-container { width: 100px; height: 100px; margin: 0 auto 25px; position: relative; display: flex; justify-content: center; align-items: center; }
+        .radar-core { width: 25px; height: 25px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 20px var(--accent); z-index: 2; }
+        .radar-ripple { position: absolute; width: 100%; height: 100%; border: 2px solid var(--accent); border-radius: 50%; animation: ripple 2s linear infinite; opacity: 0; }
+        .radar-ripple:nth-child(2) { animation-delay: 1s; }
+        @keyframes ripple { 0% { transform: scale(0.2); opacity: 1; border-width: 4px; } 100% { transform: scale(1.5); opacity: 0; border-width: 1px; } }
+        
+        .btn-cancel { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 12px 30px; font-weight: 800; border-radius: 8px; cursor: pointer; margin-top: 25px; transition: 0.2s; font-family: 'Montserrat'; }
+        .btn-cancel:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+        @media (max-width: 768px) { 
+            .hub-container { grid-template-columns: 1fr; } 
+            .card-primary { grid-column: span 1; }
+            .card-secondary { grid-column: span 1; }
+            .time-grid { grid-template-columns: 1fr 1fr; }
+            .glass-nav { padding: 16px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="glass-nav gsap-nav">
+        <a href="/" class="logo">
+            <span class="logo-icon">♚</span> 
+            GambitCore
+        </a>
+        <div class="nav-profile">
+            <span style="color: var(--accent);">●</span> <%= locals.username ? username : 'Guest' %>
+        </div>
+    </nav>
+
+    <div class="floating-piece" style="top: 20%; left: 8%;">♞</div>
+    <div class="floating-piece" style="bottom: 10%; right: 8%; transform: rotate(15deg);">♜</div>
+
+    <div class="hub-container">
+        
+        <div class="card card-primary gsap-card">
+            <div id="setup-ui">
+                <h2 class="card-title">Ranked Matchmaking</h2>
+                <p class="card-sub">Select your time control to find a global opponent.</p>
+                
+                <div class="time-grid">
+                    <div class="time-btn" onclick="selectTime(3, this)">
+                        <span class="time-icon">⚡</span>
+                        <div class="time-label">3 min</div>
+                    </div>
+                    <div class="time-btn" onclick="selectTime(5, this)">
+                        <span class="time-icon">🔥</span>
+                        <div class="time-label">5 min</div>
+                    </div>
+                    <div class="time-btn active" onclick="selectTime(10, this)">
+                        <span class="time-icon">⏱️</span>
+                        <div class="time-label">10 min</div>
+                    </div>
+                    <div class="time-btn" onclick="selectTime(30, this)">
+                        <span class="time-icon">🕰️</span>
+                        <div class="time-label">30 min</div>
+                    </div>
+                </div>
+                
+                <button class="btn-play" id="btn-find-match">
+                    <span style="font-size: 1.8rem; transform: translateY(-2px);">♟</span> Find Opponent
+                </button>
+            </div>
+
+            <div id="queue-ui">
+                <div class="radar-container">
+                    <div class="radar-ripple"></div>
+                    <div class="radar-ripple"></div>
+                    <div class="radar-core"></div>
+                </div>
+                
+                <h3 style="color: var(--accent); margin-bottom: 8px; font-family: 'Montserrat'; font-size: 1.8rem;">Scanning Network...</h3>
+                <p style="color: var(--text-muted); font-size: 1.1rem; font-weight: 600;">Looking for an opponent playing <span id="queue-time-display" style="color: #fff;">10</span> min.</p>
+                
+                <button class="btn-cancel" id="btn-cancel-match">Abort Search</button>
+            </div>
+        </div>
+
+        <div class="card card-secondary gsap-card">
+            <h2 class="card-title" style="font-size: 1.4rem;">🤝 Play a Friend</h2>
+            <p class="card-sub" style="margin-bottom: 15px;">Host a private room and share the UUID link.</p>
+            <button class="btn-custom" onclick="createPrivateGame()">
+                Create Private Room
+            </button>
+        </div>
+
+        <div class="card card-secondary gsap-card">
+            <h2 class="card-title" style="font-size: 1.4rem;">🔗 Join Game</h2>
+            <p class="card-sub" style="margin-bottom: 15px;">Paste your friend's UUID room link below.</p>
+            <input type="text" id="joinCode" class="join-input" placeholder="Paste UUID Link">
+            <button class="btn-custom" onclick="joinPrivateGame()">
+                Join Room
+            </button>
+        </div>
+
+    </div>
+    
+    <div style="text-align: center; position: relative; z-index: 10;">
+        <button onclick="window.location.href='/dashboard'" style="background: transparent; border: none; color: var(--text-muted); font-size: 1rem; font-weight: 700; cursor: pointer; transition: 0.2s;">
+            ← Back to Dashboard
+        </button>
+    </div>
+
+    <script>
+        function safeUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return 'xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Intro Animations (Safely stripped of the buggy elements)
+            if (typeof gsap !== 'undefined') {
+                gsap.from(".gsap-nav", { y: -80, opacity: 0, duration: 0.8, ease: "power3.out" });
+                // Only stagger the 3 main cards
+                gsap.from(".gsap-card", { y: 40, opacity: 0, duration: 0.8, stagger: 0.15, ease: "back.out(1.2)" });
+                // Background floating
+                gsap.to(".floating-piece", { y: "-=30", rotation: 5, duration: 4, yoyo: true, repeat: -1, ease: "sine.inOut", stagger: 1 });
+            }
+
+            if (typeof io === 'undefined') {
+                console.error("Socket.io script failed to load!");
+                return;
+            }
+
+            const socket = io();
+            const myUsername = "<%= locals.username ? username : 'Guest' %>";
+            let selectedTimeMins = 10; 
+
+            const setupUI = document.getElementById('setup-ui');
+            const queueUI = document.getElementById('queue-ui');
+            const timeDisplay = document.getElementById('queue-time-display');
+
+            window.selectTime = function(mins, element) {
+                selectedTimeMins = mins;
+                document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+                element.classList.add('active');
+                if (typeof gsap !== 'undefined') {
+                    gsap.fromTo(element, { scale: 0.95 }, { scale: 1, duration: 0.3, ease: "back.out(2)" });
+                }
+            };
+
+            const btnFindMatch = document.getElementById('btn-find-match');
+            if (btnFindMatch) {
+                btnFindMatch.addEventListener('click', () => {
+                    if (typeof gsap !== 'undefined') {
+                        gsap.to(setupUI, { opacity: 0, duration: 0.3, onComplete: () => {
+                            setupUI.style.display = 'none';
+                            queueUI.style.display = 'block';
+                            timeDisplay.textContent = selectedTimeMins;
+                            gsap.fromTo(queueUI, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.2)" });
+                        }});
+                    } else {
+                        setupUI.style.display = 'none';
+                        queueUI.style.display = 'block';
+                        timeDisplay.textContent = selectedTimeMins;
+                    }
+                    socket.emit('find_match', { username: myUsername, timeControl: selectedTimeMins });
+                });
+            }
+
+            const btnCancelMatch = document.getElementById('btn-cancel-match');
+            if (btnCancelMatch) {
+                btnCancelMatch.addEventListener('click', () => {
+                    if (typeof gsap !== 'undefined') {
+                        gsap.to(queueUI, { opacity: 0, duration: 0.3, onComplete: () => {
+                            queueUI.style.display = 'none';
+                            setupUI.style.display = 'block';
+                            gsap.fromTo(setupUI, { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.4 });
+                        }});
+                    } else {
+                        queueUI.style.display = 'none';
+                        setupUI.style.display = 'block';
+                    }
+                    socket.emit('cancel_matchmaking');
+                });
+            }
+
+            socket.on('match_found', (roomCode) => {
+                if (typeof gsap !== 'undefined') {
+                    gsap.to("body", { backgroundColor: "rgba(129, 182, 76, 0.2)", duration: 0.5 });
+                }
+                setTimeout(() => {
+                    window.location.href = `/play/${roomCode}?time=${selectedTimeMins}`;
+                }, 600);
+            });
+
+            window.createPrivateGame = function() {
+                const code = safeUUID(); 
+                window.location.href = `/play/${code}?time=${selectedTimeMins}`;
+            };
+
+            window.joinPrivateGame = function() {
+                const code = document.getElementById('joinCode').value.trim();
+                if(code.length > 5) {
+                    window.location.href = `/play/${code}?time=${selectedTimeMins}`;
+                } else {
+                    alert('Please enter a valid room link or UUID.');
+                }
+            };
+        });
+    </script>
+</body>
+</html>
