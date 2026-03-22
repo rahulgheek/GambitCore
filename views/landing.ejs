@@ -38,7 +38,15 @@
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border);
         }
-        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 900; color: white; text-decoration: none; display: flex; align-items: center; gap: 8px; }
+        .logo {
+            font-family: 'Montserrat', sans-serif; 
+            font-size: 1.8rem; 
+            font-weight: 900; 
+            letter-spacing: -1px;
+            color: white; 
+            text-decoration: none; 
+        }
+        .logo span { color: var(--accent); }
         .logo-icon { color: var(--accent); font-size: 2rem; }
         .nav-profile { font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); }
 
@@ -119,21 +127,40 @@
         .btn-cancel:hover { background: rgba(255,255,255,0.05); color: #fff; }
 
         @media (max-width: 768px) { 
-            .hub-container { grid-template-columns: 1fr; } 
+            /* 1. Stack the navbar cleanly like the dashboard */
+            .glass-nav { padding: 15px 20px; flex-direction: column; gap: 12px; }
+            
+            /* 2. Push the grid down to make room for the taller navbar */
+            .hub-container { grid-template-columns: 1fr; margin-top: 130px; } 
             .card-primary { grid-column: span 1; }
             .card-secondary { grid-column: span 1; }
-            .time-grid { grid-template-columns: 1fr 1fr; }
-            .glass-nav { padding: 16px 20px; }
+            
+            /* 3. 2x2 Grid for time controls */
+            .time-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .time-btn { padding: 15px 10px; }
+            
+            /* 4. Tame the floating background pieces */
+            .floating-piece { font-size: 4rem; opacity: 0.02; }
+            
+            /* 5. Scale down padding and text */
+            .card { padding: 25px 20px; }
+            .card-title { font-size: 1.35rem; }
+            .btn-play { font-size: 1.2rem; padding: 15px; }
+        }
+
+        @media (max-width: 480px) {
+            .logo { font-size: 1.5rem; }
+            .nav-profile { font-size: 0.9rem; padding: 4px 10px; }
+            .time-label { font-size: 0.95rem; }
+            .btn-custom { font-size: 1rem; padding: 14px; }
+            .radar-container { width: 80px; height: 80px; }
         }
     </style>
 </head>
 <body>
 
     <nav class="glass-nav gsap-nav">
-        <a href="/" class="logo">
-            <span class="logo-icon">♚</span> 
-            GambitCore
-        </a>
+        <a href="/" class="logo">♚ Gambit<span>Core</span></a>
         <div class="nav-profile">
             <span style="color: var(--accent);">●</span> <%= locals.username ? username : 'Guest' %>
         </div>

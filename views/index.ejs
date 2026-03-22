@@ -112,6 +112,53 @@
         .error-msg { color: #ff4c4c; text-align: center; margin-bottom: 15px; display: none; font-weight: 700; }
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #888; }
         .close-btn:hover { color: #fff; }
+
+        /* ============================================================
+           📱 MOBILE RESPONSIVENESS FIXES
+           ============================================================ */
+        @media (max-width: 768px) {
+            /* 1. Navbar adjustments */
+            nav {
+                padding: 15px 20px;
+                flex-direction: column; /* Stacks logo above buttons */
+                gap: 15px;
+            }
+            .logo { font-size: 1.8rem; }
+            .btn { padding: 8px 18px; font-size: 0.9rem; }
+
+            /* 2. Hero Section scaling */
+            .hero-title {
+                font-size: 2.8rem; /* Scaled down from 5.5rem */
+                margin-top: 80px;  /* Pushes text down so stacked nav doesn't cover it */
+            }
+            .hero-sub {
+                font-size: 1.1rem;
+                padding: 0 10px;
+                margin-bottom: 30px;
+            }
+            .hero-cta { padding: 14px 30px; font-size: 1.1rem; }
+
+            /* 3. Tame the floating chess pieces */
+            .floating-piece {
+                font-size: 3.5rem; /* Shrinks them so they don't block the screen */
+                opacity: 0.02;     /* Dims them slightly more on mobile */
+            }
+
+            /* 4. Section & Typography adjustments */
+            .section-padding { padding: 60px 20px; }
+            .section-header { font-size: 2.2rem; margin-bottom: 40px; }
+            
+            /* 5. Stats Banner scaling */
+            .stats-banner { padding: 50px 20px; gap: 30px; }
+            .stat-number { font-size: 3rem; }
+            
+            /* 6. Auth Modal constraints */
+            .auth-box {
+                width: 90%;
+                padding: 30px 20px;
+            }
+            .auth-title { font-size: 1.6rem; }
+        }
     </style>
 </head>
 <body>

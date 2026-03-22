@@ -39,11 +39,16 @@
             border-bottom: 1px solid var(--border);
         }
         
+        /* --- LOGO STYLING (Matched to Home Page) --- */
         .logo {
-            font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 900;
-            color: white; text-decoration: none; display: flex; align-items: center; gap: 8px;
+            font-family: 'Montserrat', sans-serif; 
+            font-size: 1.6rem; 
+            font-weight: 900;
+            color: white; 
+            text-decoration: none; 
+            letter-spacing: -1px;
         }
-        .logo-icon { color: var(--accent); font-size: 2rem; }
+        .logo span { color: var(--accent); }
         
         .nav-actions { display: flex; gap: 20px; align-items: center; }
         .nav-link {
@@ -118,7 +123,7 @@
         .tech-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--card-inner); border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; font-weight: 700; margin: 0 8px 8px 0; }
         .tech-badge span { color: var(--accent); }
 
-        /* --- MODAL SPECIFIC CSS ADDED --- */
+        /* --- MODAL SPECIFIC CSS --- */
         .btn-modern {
             background: var(--card-inner); color: var(--text-main); border: 1px solid var(--border);
             padding: 12px; border-radius: 10px; font-weight: 800; font-family: 'Montserrat';
@@ -134,32 +139,44 @@
         }
         .join-input:focus { border-color: var(--accent); }
 
-        /* --- RESPONSIVE GRID --- */
+        /* ============================================================
+           📱 RESPONSIVE GRID & MOBILE FIXES
+           ============================================================ */
         @media (max-width: 1024px) {
-            .card-play { grid-column: span 12; }
-            .card-profile { grid-column: span 12; flex-direction: row; text-align: left; align-items: center; justify-content: space-between; }
+            .card-play, .card-profile, .card-leaderboard, .card-info { grid-column: span 12; }
+            .card-profile { flex-direction: row; text-align: left; align-items: center; justify-content: space-between; }
             .profile-avatar { margin-bottom: 0; margin-right: 20px; }
             .stat-group { width: auto; min-width: 300px; }
-            .card-leaderboard { grid-column: span 12; }
-            .card-info { grid-column: span 12; }
         }
-        @media (max-width: 640px) {
-            .card-profile { flex-direction: column; text-align: center; }
+        
+        @media (max-width: 768px) {
+            .glass-nav { padding: 15px 20px; flex-direction: column; gap: 15px; }
+            .dashboard-wrapper { margin-top: 130px; } /* Makes room for the stacked navbar */
+            
+            .card-profile { flex-direction: column; text-align: center; justify-content: center; }
             .profile-avatar { margin-right: 0; margin-bottom: 16px; }
             .stat-group { flex-direction: column; min-width: 100%; }
-            .glass-nav { padding: 16px 20px; }
-            .hero-title { font-size: 2.5rem; }
-            .nav-actions { gap: 10px; }
+            
+            .hero-title { font-size: 2.6rem; }
+            .btn-glow { width: 100%; padding: 15px 20px; font-size: 1.1rem; }
+            .bento-card { padding: 24px; }
         }
+        
+        @media (max-width: 480px) {
+            .hero-title { font-size: 2.2rem; }
+            .bento-card { padding: 20px; }
+            .logo { font-size: 1.6rem; }
+            .lb-user { font-size: 0.95rem; }
+            .lb-rank { width: 30px; font-size: 1rem; }
+            .section-title { font-size: 1.1rem; flex-direction: column; gap: 5px; }
+        }
+    </style>
     </style>
 </head>
 <body>
 
     <nav class="glass-nav gsap-nav">
-        <a href="/" class="logo">
-            <span class="logo-icon">♚</span> 
-            GambitCore
-        </a>
+        <a href="/" class="logo">♚ Gambit<span>Core</span></a>
         <div class="nav-actions">
             <a href="/" class="nav-link">Home</a>
             <a href="/logout" class="logout-btn">Logout</a>
