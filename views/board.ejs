@@ -2,67 +2,689 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chess</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live Chess - GambitCore</title>
   
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&family=Montserrat:wght@600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="/public/css/style.css">
+  
+  <script src="/socket.io/socket.io.js"></script>
 
-<script src="/socket.io/socket.io.js"></script> 
+  <style>
+    /* =============================================================
+       GAMBITCORE — CLEAN DARK THEME
+       All id/class hooks that chess.js depends on are untouched.
+       ============================================================= */
+
+    /* ── Tokens ─────────────────────────────────────────────── */
+    :root {
+      --bg:           #272522;
+      --surface:      #1e1c1a;
+      --card:         #2a2826;
+      --border:       #3a3733;
+      --border-soft:  #444140;
+
+      --text:         #e8e6e3;
+      --text-sub:     #b0ada9;
+      --text-muted:   #706e6b;
+
+      --green:        #81b64c;
+      --green-hover:  #96cc5a;
+      --green-glow:   rgba(129,182,76,.15);
+
+      --clock-idle:   #1a1917;
+      --clock-on-bg:  #eeece8;
+      --clock-on-fg:  #1a1917;
+      --clock-low:    #c0392b;
+
+      --danger:       #e74c3c;
+      --danger-glow:  rgba(231,76,60,.12);
+
+      /* board squares */
+      --light-sq:     #f0d9b5;
+      --dark-sq:      #b58863;
+      --last-light:   #cdd26a;
+      --last-dark:    #aaa23a;
+      --selected-light:#7fc97f;
+      --selected-dark: #5aaa5a;
+
+      /* mobile board gutter — space on each side */
+      --mob-gutter: 12px;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ── Page wrapper ────────────────────────────────────────── */
+    .game-wrapper {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px;
+      width: 100%;
+      max-width: 1260px;
+      justify-content: center;
+    }
+
+    /* ── Board column ────────────────────────────────────────── */
+    .board-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── Player bar ──────────────────────────────────────────── */
+    .player-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 2px;
+    }
+
+    .player-identity {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .player-avatar {
+      width: 36px; height: 36px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .player-avatar.black { background: #252320; color: #ccc; border: 1px solid #3a3733; }
+    .player-avatar.white { background: #f0d9b5; color: #2a2826; }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .player-info h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: .88rem; font-weight: 700;
+      color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    .material-score {
+      display: flex; align-items: center;
+      gap: 0; min-height: 15px; margin-top: 1px;
+    }
+    .captured-pieces { font-size: 11px; color: var(--text-muted); }
+    .score-diff      { font-size: 10px; color: var(--green); font-weight: 700; margin-left: 3px; }
+
+    /* ── Clock ───────────────────────────────────────────────── */
+    .clock {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 1.1rem;           /* fixed — no vw units that collapse on mobile */
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: var(--clock-idle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      color: var(--text-muted);
+      text-align: center;
+      min-width: 80px;
+      flex-shrink: 0;
+      transition: background .18s, color .18s, border-color .18s;
+    }
+    .clock.active {
+      background: var(--clock-on-bg);
+      color: var(--clock-on-fg);
+      border-color: var(--clock-on-bg);
+    }
+    .clock.low {
+      background: var(--clock-low);
+      color: #fff;
+      border-color: var(--clock-low);
+      animation: blink .9s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.65} }
+
+    /* ── Coord labels ────────────────────────────────────────── */
+    .board-outer { display: flex; align-items: stretch; }
+
+    .coords-col {
+      display: flex; flex-direction: column;
+      width: 14px; flex-shrink: 0;
+    }
+    .coords-col .coord { flex: 1; }
+
+    .board-wrap { display: flex; flex-direction: column; }
+
+    .coords-row { display: flex; height: 14px; }
+    .coords-row .coord { flex: 1; }
+
+    .coord {
+      font-size: 9px; font-weight: 600;
+      color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+    }
+
+    /* ── Board ───────────────────────────────────────────────── */
+    .board {
+      border: 2px solid #1a1917;
+      border-radius: 3px;
+      overflow: hidden;
+      box-shadow: 0 18px 48px rgba(0,0,0,.7);
+    }
+    .square.selected      { background: var(--selected-light) !important; }
+    .square.selected.dark { background: var(--selected-dark)  !important; }
+
+    /* ── Post-game layout fix ────────────────────────────────── */
+    /* When result card appears, hide chat + resign so the move
+       list + result card share all available panel space.        */
+    .side-panel:has(#result-card:not(.hidden)) .chat-card,
+    .side-panel:has(#result-card:not(.hidden)) .panel-card:has(#btn-resign) {
+      display: none !important;
+    }
+    .side-panel:has(#result-card:not(.hidden)) .moves-card {
+      flex: 1; min-height: 0;
+    }
+    #result-card { flex-shrink: 0; }
+
+    /* ── Side panel ─────────────────────────────────────────── */
+    .side-panel {
+      width: clamp(250px, 21vw, 290px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: calc(var(--sq) * 8 + 14px + 92px);
+      max-height: 660px;
+      min-height: 400px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.5);
+      flex-shrink: 0;
+    }
+
+    /* ── Status bar ─────────────────────────────────────────── */
+    .status-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .75rem; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.6s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+    /* ── Panel card ─────────────────────────────────────────── */
+    .panel-card {
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid var(--border);
+    }
+    .flex-card { flex: 1; min-height: 0; overflow: hidden; }
+
+    .panel-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: .68rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .9px;
+      color: var(--text-muted);
+      padding: 7px 13px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Move list ──────────────────────────────────────────── */
+    #move-list {
+      flex: 1; overflow-y: auto; padding: 5px 3px;
+    }
+    #move-list::-webkit-scrollbar       { width: 2px; }
+    #move-list::-webkit-scrollbar-track { background: transparent; }
+    #move-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .move-row {
+      display: grid;
+      grid-template-columns: 26px 1fr 1fr;
+      gap: 1px;
+      padding: 1px 0;
+      border-radius: 3px;
+    }
+    .move-row:hover { background: rgba(255,255,255,.04); }
+
+    .move-number {
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: 'Roboto Mono', monospace;
+      padding: 3px 4px;
+      text-align: right;
+    }
+    .move-san {
+      padding: 3px 7px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .8rem; font-weight: 600;
+      color: var(--text-sub);
+      transition: background .1s, color .1s;
+    }
+    .move-san:hover  { background: rgba(255,255,255,.07); color: var(--text); }
+    .move-san.active { background: var(--green-glow); color: var(--green); }
+    .move-san.empty  { cursor: default; pointer-events: none; }
+
+    /* Nav buttons */
+    .nav-row {
+      display: flex;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      flex: 1; padding: 8px 0;
+      background: transparent;
+      border: none; border-right: 1px solid var(--border);
+      color: var(--text-muted); font-size: .95rem;
+      cursor: pointer;
+      transition: background .1s, color .1s;
+    }
+    .nav-btn:last-child { border-right: none; }
+    .nav-btn:hover { background: rgba(255,255,255,.05); color: var(--text); }
+
+    /* ── Chat ───────────────────────────────────────────────── */
+    .chat-card { height: 195px; }
+
+    #chat-messages {
+      flex: 1; overflow-y: auto;
+      padding: 8px 11px;
+      display: flex; flex-direction: column; gap: 5px;
+      font-size: .8rem;
+    }
+    #chat-messages::-webkit-scrollbar       { width: 2px; }
+    #chat-messages::-webkit-scrollbar-track { background: transparent; }
+    #chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .chat-bubble {
+      background: rgba(255,255,255,.04);
+      padding: 5px 9px;
+      border-radius: 6px 6px 6px 2px;
+      word-break: break-word;
+      line-height: 1.45;
+      color: var(--text-sub);
+    }
+
+    .chat-input-row {
+      display: flex; gap: 0;
+      padding: 8px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #chat-input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border); border-right: none;
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 5px 0 0 5px;
+      outline: none;
+      font-family: 'DM Sans', sans-serif; font-size: .82rem;
+      transition: border-color .15s;
+    }
+    #chat-input:focus { border-color: var(--green); }
+    #btn-send-chat {
+      background: var(--border);
+      color: var(--text-sub);
+      border: 1px solid var(--border);
+      border-radius: 0 5px 5px 0;
+      padding: 0 12px;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: .75rem;
+      transition: background .12s, color .12s;
+    }
+    #btn-send-chat:hover { background: var(--border-soft); color: var(--text); }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn-row {
+      padding: 10px 10px;
+      display: flex; gap: 7px;
+      background: var(--card);
+      flex-shrink: 0;
+    }
+    .btn {
+      flex: 1; padding: 9px 8px;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .78rem; font-weight: 700;
+      cursor: pointer;
+      transition: background .14s, border-color .14s, color .14s;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+    }
+    .btn.primary {
+      background: var(--green); border: 1px solid var(--green); color: #fff;
+    }
+    .btn.primary:hover { background: var(--green-hover); border-color: var(--green-hover); }
+    .btn.danger {
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    }
+    .btn.danger:hover { background: var(--danger-glow); border-color: var(--danger); color: var(--danger); }
+    .btn:not(.primary):not(.danger) {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-sub);
+    }
+    .btn:not(.primary):not(.danger):hover { background: var(--border); color: var(--text); }
+
+    /* ── Result card ─────────────────────────────────────────── */
+    #result-card { padding: 12px; flex-shrink: 0; }
+    .win-banner {
+      background: linear-gradient(135deg, #1e3312, #2a4a1c);
+      border: 1px solid #3d6828;
+      border-radius: 8px; padding: 14px; text-align: center;
+    }
+    .win-banner.draw {
+      background: linear-gradient(135deg, #1e1c2e, #28263c);
+      border-color: #403c5e;
+    }
+    .win-banner-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1rem; font-weight: 800; color: #fff; margin-bottom: 3px;
+    }
+    .win-banner-sub { font-size: .78rem; color: var(--text-muted); margin-bottom: 11px; }
+
+    /* ── Modals ─────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.8);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(6px);
+    }
+    .modal-overlay.hidden { display: none !important; }
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 26px;
+      text-align: center; width: 90%; max-width: 380px;
+      box-shadow: 0 28px 72px rgba(0,0,0,.6);
+    }
+    .modal h2, .modal h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800; color: var(--text); margin-bottom: 10px;
+    }
+
+    .promo-pieces { display: flex; gap: 10px; justify-content: center; margin-top: 14px; }
+    .promo-piece {
+      width: 68px; height: 68px;
+      background: rgba(255,255,255,.04);
+      border: 2px solid var(--border); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .14s;
+    }
+    .promo-piece svg { width: 48px; height: 48px; }
+    .promo-piece:hover {
+      background: var(--green-glow); border-color: var(--green);
+      transform: translateY(-2px);
+    }
+
+    /* ── Utility ─────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .analysis-mode .board { outline: 2px solid #e67e22; }
+
+    /* =============================================================
+       MOBILE  ≤ 768 px
+       ============================================================= */
+    @media(min-width: 200px){
+      
+    }
+    @media (max-width: 900px) {
+      .moves-card{ 
+        height: 180px; /* Puts a hard cap on the height */
+        flex: none;    /* Stops it from stretching endlessly */
+      }
+      #move-list {
+        overflow-y: auto; /* Forces the scrollbar to appear */
+      }
+      .chat-section {
+        height: 280px; /* Gives a good, generous amount of space for mobile chat */
+        flex: none;    /* Stops the box from stretching endlessly */
+      }
+      
+      #chat-messages {
+        flex: 1;
+        min-height: 0; /* 🚨 CRITICAL: This is the magic flexbox rule that forces the scrollbar to appear! */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch; /* Adds buttery smooth scrolling on iPhones */
+      }
+    }
+    @media (max-width: 768px) {
+      body {
+        align-items: flex-start;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .game-wrapper {
+        flex-direction: column;
+        align-items: center;
+        padding: 0;
+        gap: 0;
+      }
+
+      /* Board column */
+      .board-section {
+        width: 100%;
+        gap: 0;
+        padding: 0 var(--mob-gutter);  /* ← breathing room on both sides */
+        background: var(--bg);
+      }
+
+      /* Player bars are constrained to the board width naturally
+         because board-section now has padding. */
+      .player-bar {
+        padding: 9px 2px;              /* inner padding only, outer from parent */
+        background: transparent;
+      }
+      /* Tighter clock on mobile — no vw tricks needed */
+      .clock { font-size: .95rem; min-width: 70px; padding: 4px 10px; }
+
+      /* Player name can be narrower on phone */
+      .player-info h3 { max-width: 120px; font-size: .82rem; }
+
+      /* Hide coord labels */
+      .coords-col, .coords-row { display: none; }
+
+      .board-outer { width: 100%; }
+      .board-wrap  { width: 100%; }
+
+      /*
+       * Board squares scale to fit the available width after gutters.
+       * (100vw - 2 * mob-gutter) / 8  →  exact fit, no overflow.
+       * CSS variable scoping means all children (.square, .piece)
+       * inherit this local --sq instead of the JS-set body value.
+       */
+      .board {
+        --sq: calc((100vw - 2 * var(--mob-gutter)) / 8);
+        grid-template-columns: repeat(8, var(--sq));
+        grid-template-rows:    repeat(8, var(--sq));
+        width: calc(8 * var(--sq));
+        border-radius: 4px;
+        box-shadow: 0 8px 28px rgba(0,0,0,.5);
+        margin: 0 auto;           /* center inside padded section */
+      }
+
+      /* Side panel full-width below */
+      .side-panel {
+        width: 100%; border-radius: 0;
+        border: none; border-top: 3px solid var(--bg);
+        height: auto; min-height: unset; max-height: unset;
+        margin-top: 10px;
+      }
+
+      .chat-card { height: 220px !important;
+      flex: none !important; }
+
+      .moves-card {
+      height: 200px !important;
+      flex: none !important;
+    }
+
+    #chat-messages, #move-list {
+      flex: 1;
+      min-height: 0 !important; /* The magic rule that tells flexbox it is allowed to shrink and scroll! */
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch; /* Smooth scrolling for mobile */
+    }
+    }
+  </style>
+
+  <!-- KEEP YOUR EXISTING HEAD + CSS (only add below extra CSS) -->
 
 <style>
-  /* Move List Styling */
-  .move-row {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 8px 10px;
-    border-bottom: 1px solid #333;
-    font-family: 'DM Sans', sans-serif;
+/* 🔴 DYNAMIC CHECK (The Heartbeat Warning) */
+.square.check {
+  animation: kingInDanger 1.2s infinite alternate ease-in-out !important;
+  z-index: 5;
+}
+
+@keyframes kingInDanger {
+  0% {
+    box-shadow: inset 0 0 15px rgba(239, 68, 68, 0.6), 0 0 10px rgba(239, 68, 68, 0.2);
+    background-color: rgba(239, 68, 68, 0.15);
   }
-  .move-row:nth-child(even) {
-    background-color: #2a2a2a;
+  100% {
+    box-shadow: inset 0 0 45px rgba(239, 68, 68, 1), 0 0 25px rgba(239, 68, 68, 0.8);
+    background-color: rgba(239, 68, 68, 0.5);
   }
-  .move-number {
-    width: 30px;
-    color: #888;
-    font-weight: bold;
+}
+
+/* 💥 CHECKMATE: THE SNIPER IMPACT */
+.square.checkmate-flash {
+  animation: impactFlash 0.5s ease-out forwards !important;
+  z-index: 10;
+}
+
+/* The King piece takes the hit (Knockback + Gray out) */
+.square.checkmate-flash .piece {
+  animation: kingStruck 1s cubic-bezier(0.1, 0.8, 0.2, 1) forwards !important;
+  will-change: transform, filter;
+  position: relative; /* Required for the crack overlay */
+}
+
+/* ⚡ THE INSTANT CRACKS (Inline SVG Overlay) */
+.square.checkmate-flash .piece::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  /* An aggressive, jagged crack drawn directly in CSS */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M45,5 L50,30 L30,45 L55,60 L45,95' fill='none' stroke='%23111' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M50,30 L80,25 M55,60 L85,75 M30,45 L10,50' fill='none' stroke='%23111' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-size: cover;
+  opacity: 0;
+  animation: showCracks 0.6s forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 🌪 THE SHARP SCREEN SHAKE */
+.board-shake {
+  animation: cameraShake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+  will-change: transform;
+}
+
+@keyframes impactFlash {
+  0% { box-shadow: inset 0 0 80px rgba(255, 0, 0, 0.9); background-color: rgba(255, 0, 0, 0.6); }
+  100% { box-shadow: inset 0 0 30px rgba(150, 0, 0, 0.8); background-color: rgba(100, 0, 0, 0.4); }
+}
+
+@keyframes kingStruck {
+  0% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+  15% { transform: scale(1.1) rotate(-8deg) translate(-4px, -4px); filter: brightness(2) drop-shadow(0 0 10px white); }
+  100% { transform: scale(0.9) rotate(12deg) translate(6px, 8px); filter: grayscale(0.8) brightness(0.7); }
+}
+
+@keyframes showCracks {
+  0%, 14% { opacity: 0; transform: scale(0.8); }
+  15% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 2px rgba(255,255,255,0.8)); } /* Cracks appear instantly on impact */
+  100% { opacity: 0.95; transform: scale(1); filter: drop-shadow(0 0 1px rgba(255,255,255,0.4)); }
+}
+
+@keyframes cameraShake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-8px, 6px); }
+  40% { transform: translate(6px, -8px); }
+  60% { transform: translate(-4px, 4px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+
+
+
+/* 📱 MOBILE FIX */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    height: auto;
   }
-  .move-san {
-    flex: 1;
-    text-align: center;
-    cursor: pointer;
-    color: #e8e6e3;
-    transition: color 0.2s;
+
+  .game-wrapper {
+    min-height: 100dvh;
   }
-  .move-san:hover, .move-san.active {
-    color: #f39c12;
-    font-weight: bold;
+
+  .side-panel {
+    overflow: visible;
   }
-  .move-san.empty {
-    cursor: default;
+
+  #move-list {
+    max-height: 200px;
   }
+}
 </style>
-
-
 </head>
 <body>
 
 <div class="game-wrapper">
 
+  <!-- ═══════════════ LEFT: BOARD AREA ═══════════════ -->
   <div class="board-section">
+    
+    <!-- Opponent bar (top) -->
     <div class="player-bar">
-      <div class="player-avatar black">♟</div>
-      <div class="player-info">
-        <h3 id="black-player-name">Black</h3>
-        <div class="material-score">
-          <span id="captured-by-black" class="captured-pieces"></span>
-          <span id="score-black" class="score-diff"></span>
+      <div class="player-identity">
+        <div class="player-avatar black">♟</div>
+        <div class="player-info">
+          <h3 id="black-player-name">Opponent</h3>
+          <div class="material-score">
+            <span id="captured-by-black" class="captured-pieces"></span>
+            <span id="score-black" class="score-diff"></span>
+          </div>
         </div>
       </div>
       <div class="clock" id="clock-black">10:00</div>
     </div>
 
+    <!-- Board with coordinate labels -->
     <div class="board-outer">
       <div class="coords-col" id="rank-coords"></div>
       <div class="board-wrap">
@@ -71,91 +693,134 @@
       </div>
     </div>
 
+    <!-- Your player bar (bottom) -->
     <div class="player-bar">
-      <div class="player-avatar white">♙</div>
-      <div class="player-info">
-        <h3 id="white-player-name">White</h3>
-        <div class="material-score">
-          <span id="captured-by-white" class="captured-pieces"></span>
-          <span id="score-white" class="score-diff"></span>
+      <div class="player-identity">
+        <div class="player-avatar white">♙</div>
+        <div class="player-info">
+          <h3 id="white-player-name"><%= locals.username ? username : 'Guest' %></h3>
+          <div class="material-score">
+            <span id="captured-by-white" class="captured-pieces"></span>
+            <span id="score-white" class="score-diff"></span>
+          </div>
         </div>
       </div>
       <div class="clock" id="clock-white">10:00</div>
     </div>
   </div>
 
+  <!-- ═══════════════ RIGHT: SIDE PANEL ═══════════════ -->
   <div class="side-panel">
+
+    <!-- Game status -->
     <div class="status-bar" id="status-bar">
       <div class="status-dot"></div>
-      White's turn
+      Connecting...
     </div>
 
-    <div class="panel-card flex-card">
-      <div class="panel-title">Moves</div>
+    <!-- Move history -->
+    <div class="panel-card flex-card moves-card">
+      <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Moves</span>
+        <button id="go-live-btn" class="hidden" onclick="navigateTo(-1)" style="background:var(--green); color:white; border:none; padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.7rem; font-weight:bold; transition: 0.2s;">
+          ● Live
+        </button>
+      </div>
       <div class="move-list" id="move-list"></div>
       <div class="nav-row">
-        <button class="nav-btn" id="btn-first" title="Start">⏮</button>
+        <button class="nav-btn" id="btn-first" title="First move">⏮</button>
         <button class="nav-btn" id="btn-prev"  title="Previous">◀</button>
         <button class="nav-btn" id="btn-next"  title="Next">▶</button>
-        <button class="nav-btn" id="btn-last"  title="End">⏭</button>
+        <button class="nav-btn" id="btn-last"  title="Last move">⏭</button>
       </div>
     </div>
 
-    <div class="panel-card flex-card">
+    <!-- Live chat -->
+    <div class="panel-card flex-card chat-card">
       <div class="panel-title">Live Chat</div>
-      <div id="chat-messages" class="chat-messages"></div>
+      <div id="chat-messages" class="chat-messages">
+        <div style="text-align:center; color:var(--text-muted); margin-top:6px; font-size:.8rem;">Room joined. Good luck! 👋</div>
+      </div>
       <div class="chat-input-row">
-        <input type="text" id="chat-input" placeholder="Type a message...">
-        <button class="btn primary" id="btn-send-chat" style="padding: 0 12px;">Send</button>
+        <input type="text" id="chat-input" placeholder="Say something…" autocomplete="off">
+        <button id="btn-send-chat">Send</button>
       </div>
     </div>
 
+    <!-- Resign -->
     <div class="panel-card">
       <div class="btn-row">
-        <button class="btn danger" id="btn-resign" style="width: 100%; font-weight: bold;">Resign</button>
+        <button class="btn danger" id="btn-resign" style="width:100%;">⚑ &nbsp;Resign</button>
       </div>
     </div>
 
+    <!-- Game over result -->
     <div id="result-card" class="hidden">
       <div class="win-banner" id="win-banner">
-        <div class="win-banner-title" id="win-title">White wins!</div>
-        <div class="win-banner-sub" id="win-sub">by checkmate</div>
-        <button class="btn" id="btn-rematch" style="margin-top: 12px; width: 100%; background: rgba(255,255,255,0.2); color: white; border: none;">Request Rematch</button>
-        <button class="btn primary" onclick="window.location.href='/dashboard'" style="margin-top: 10px; width: 100%; font-weight: bold;">Back to Dashboard</button>
+        <div class="win-banner-title" id="win-title">White Wins!</div>
+        <div class="win-banner-sub"   id="win-sub">by Checkmate</div>
+        <button class="btn primary"   id="btn-rematch" style="width:100%; margin-bottom:8px;">Request Rematch</button>
+        <button class="btn" onclick="window.location.href='/dashboard'" style="width:100%;">← Dashboard</button>
       </div>
     </div>
+
   </div>
 </div>
 
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Pawn promotion -->
 <div class="modal-overlay hidden" id="promo-modal">
   <div class="modal">
-    <h3>Choose promotion</h3>
+    <h3>Promote Pawn</h3>
     <div class="promo-pieces" id="promo-pieces"></div>
   </div>
 </div>
 
+<!-- Waiting for opponent -->
 <div class="modal-overlay hidden" id="waiting-modal">
-  <div class="modal" style="padding: 40px;">
-    <h3>Waiting for Opponent...</h3>
-    <p style="color: #aaa; margin-top: 10px;">Share this room code:</p>
-    <h1 id="room-code-display" style="letter-spacing: 5px; color: #7fa650; margin-top: 10px;"></h1>
+  <div class="modal">
+    <h2>Waiting for Opponent</h2>
+    <p style="color:var(--text-muted); margin:10px 0 6px;">Share this code with a friend:</p>
+    <div style="background:var(--bg-inset); padding:12px; border-radius:6px; border:1px solid var(--border); margin-bottom:16px;">
+      <div id="room-code-display" style="color:var(--green); font-family:'Roboto Mono',monospace; font-size:1.1rem; letter-spacing:3px; word-break:break-all;"></div>
+    </div>
+    <button class="btn primary" style="width:100%; margin-bottom:10px;" onclick="copyRoomCode()">Copy Link</button>
+    <button class="btn danger"  onclick="window.location.href='/matchmaking'" style="width:100%;">Cancel</button>
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="reconnect-modal" style="z-index: 999; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;">
-  <div class="modal" style="padding: 40px; background: #222; border-radius: 10px; text-align: center;">
-    <h2 style="color: #e74c3c;">Opponent Disconnected!</h2>
-    <p style="color: #aaa; margin-top: 10px;">They have 60 seconds to return before forfeiting.</p>
-    <h1 id="reconnect-timer" style="font-size: 3rem; margin-top: 20px; color: #f39c12;">60</h1>
+<!-- Opponent disconnected -->
+<div class="modal-overlay hidden" id="reconnect-modal">
+  <div class="modal" style="border-top:4px solid var(--danger);">
+    <h2 style="color:var(--danger);">Opponent Disconnected</h2>
+    <p style="color:var(--text-muted); margin-top:8px;">Waiting for player to reconnect…</p>
+    <div id="reconnect-timer" style="font-family:'Roboto Mono',monospace; font-size:3.5rem; font-weight:700; color:#fff; margin-top:12px;">60</div>
   </div>
 </div>
 
 <script>
-    // EJS injects the MongoDB username here before the page loads!
-    const myUsername = "<%= username %>";
+    const myUsername = "<%= locals.username ? username : 'Guest' %>";
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const urlParts = window.location.pathname.split('/');
+        const roomCode = urlParts[urlParts.length - 1];
+        const displayEl = document.getElementById('room-code-display');
+        if (displayEl) displayEl.innerText = roomCode;
+    });
+
+    function copyRoomCode() {
+        const urlParts = window.location.pathname.split('/');
+        const roomCode = urlParts[urlParts.length - 1];
+        navigator.clipboard.writeText(window.location.origin + '/play/' + roomCode);
+        const btn = event.target;
+        btn.innerText = "Link Copied! ✓";
+        setTimeout(() => { btn.innerText = "Copy Link"; }, 2000);
+    }
 </script>
 
 <script src="/public/js/pieces.js"></script>
 <script src="/public/js/chess.js"></script>
+
 </body>
 </html>

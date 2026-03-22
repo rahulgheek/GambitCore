@@ -15,6 +15,7 @@ let myRole = 'spectator';
 let boardFlipped = false;
 let currentTurn = 'w';
 let isGameOver = false;
+let kingInCheckAlg = null;
 
 // UI & Memory State
 let localBoard = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -51,6 +52,65 @@ function fenToBoardArray(fen) {
     return board;
 }
 
+// ⚡ THE SNIPER BULLET ⚡
+function shootProjectile(attackerAlg, targetAlg) {
+    const attackerSq = document.querySelector(`[data-alg="${attackerAlg}"]`);
+    const targetSq = document.querySelector(`[data-alg="${targetAlg}"]`);
+    if (!attackerSq || !targetSq) return;
+
+    const aRect = attackerSq.getBoundingClientRect();
+    const tRect = targetSq.getBoundingClientRect();
+    const startX = aRect.left + window.scrollX + aRect.width / 2;
+    const startY = aRect.top + window.scrollY + aRect.height / 2;
+    const endX = tRect.left + window.scrollX + tRect.width / 2;
+    const endY = tRect.top + window.scrollY + tRect.height / 2;
+
+    const bullet = document.createElement('div');
+    bullet.style.position = 'absolute';
+    bullet.style.left = startX + 'px';
+    bullet.style.top = startY + 'px';
+    
+    // Sleek, high-speed tracer round
+    bullet.style.width = '45px';
+    bullet.style.height = '4px';
+    bullet.style.background = 'linear-gradient(90deg, transparent, #ffea00, #ffffff)';
+    bullet.style.borderRadius = '2px';
+    bullet.style.pointerEvents = 'none';
+    bullet.style.zIndex = '999999';
+    bullet.style.boxShadow = '0 0 8px #ffffff, 0 0 15px #ffea00';
+    bullet.style.willChange = 'transform';
+    
+    const angle = Math.atan2(endY - startY, endX - startX) * (180 / Math.PI);
+    bullet.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+    
+    // Extremely fast flight time (0.15s)
+    bullet.style.transition = 'transform 0.15s cubic-bezier(0.4, 0, 1, 1)'; 
+    
+    document.body.appendChild(bullet);
+
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+
+    // Fire the bullet
+    requestAnimationFrame(() => {
+        bullet.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px)) rotate(${angle}deg)`;
+    });
+
+    // The precise millisecond it hits: delete bullet, apply cracks, and shake!
+    setTimeout(() => {
+        bullet.remove();
+        
+        targetSq.classList.add('checkmate-flash');
+        
+        const boardEl = document.getElementById('board');
+        if (boardEl) {
+            boardEl.classList.remove('board-shake');
+            void boardEl.offsetWidth; // Force browser to reset the animation
+            boardEl.classList.add('board-shake');
+        }
+    }, 150); // Matches the 0.15s flight time perfectly
+}
+
 // --- INITIALIZATION ---
 if (isOnline) {
     socket = io();
@@ -71,6 +131,7 @@ if (isOnline) {
         
         currentTurn = data.turn;
         isGameOver = data.gameOver;
+        kingInCheckAlg = data.inCheckSquare || null;
         serverTimers = data.timers;
         moveHistory = data.history || [];
         historyFens = data.fens || [];
@@ -91,6 +152,32 @@ if (isOnline) {
         renderBoard();
         renderMoveList();
         startClock();
+
+        if (isGameOver) {
+            const banner = document.getElementById('win-banner');
+            const title = document.getElementById('win-title');
+            const sub = document.getElementById('win-sub');
+            document.getElementById('result-card').classList.remove('hidden');
+
+            // Fallback: If your server doesn't send winner info in game_sync, we guess from the last move!
+            const lastMove = moveHistory[moveHistory.length - 1];
+            if (lastMove && lastMove.endsWith('#')) {
+                // If it's an odd number of moves, White delivered checkmate. If even, Black did.
+                const winner = (moveHistory.length % 2 !== 0) ? 
+                    document.getElementById('white-player-name').innerText : 
+                    document.getElementById('black-player-name').innerText;
+                
+                title.textContent = `${winner} Wins!`;
+                sub.textContent = "by Checkmate";
+                banner.classList.remove('draw');
+            } else {
+                title.textContent = "Game Over";
+                sub.textContent = "Match Concluded";
+            }
+        } else {
+            // Ensure the card is hidden if we are playing a live game
+            document.getElementById('result-card').classList.add('hidden');
+        }
     });
 
     socket.on('rematch_requested', () => {
@@ -130,26 +217,50 @@ if (isOnline) {
         renderBoard(); 
     });
 
-    socket.on('game_over', (data) => {
-        isGameOver = true;
-        clearInterval(clockInterval);
-        document.getElementById('reconnect-modal').classList.add('hidden');
+    // --- GAME OVER LISTENER ---
+socket.on('game_over', (data) => {
+    isGameOver = true;
+    clearInterval(clockInterval);
+    document.getElementById('reconnect-modal').classList.add('hidden');
+    
+    // 🚨 TRIGGER THE BULLET ON CHECKMATE
+    if (data.reason === 'checkmate') {
+        const loserColor = data.winnerColor === 'w' ? 'b' : 'w';
+        kingInCheckAlg = findKingSquare(loserColor);
         
-        const banner = document.getElementById('win-banner');
-        const title = document.getElementById('win-title');
-        const sub = document.getElementById('win-sub');
-        document.getElementById('result-card').classList.remove('hidden');
+        // Robust Regex to find the attacker's destination square from SAN (e.g., Qh4#, exf8=Q#)
+        const lastMove = moveHistory[moveHistory.length - 1];
+        const match = lastMove ? lastMove.match(/([a-h][1-8])(?:=[QRBN])?[+#]?$/) : null;
+        const attackerAlg = match ? match[1] : null;
 
-        if (data.reason === 'draw') {
-            title.textContent = "Draw";
-            sub.textContent = "It's a tie!";
-            banner.classList.add('draw');
+        renderBoard(); // Draw the pieces in their final position first
+
+        // Fire the gun a split second later for dramatic effect
+        if (attackerAlg && kingInCheckAlg) {
+            setTimeout(() => {
+                shootProjectile(attackerAlg, kingInCheckAlg);
+            }, 100);
         } else {
-            title.textContent = `${data.winnerName} wins!`;
-            sub.textContent = data.reason === 'abandonment' ? "Opponent abandoned the match" : `by ${data.reason}`;
-            banner.classList.remove('draw');
+            const target = document.querySelector(`[data-alg="${kingInCheckAlg}"]`);
+            if (target) target.classList.add('checkmate-flash');
         }
-    });
+    }
+
+    const banner = document.getElementById('win-banner');
+    const title = document.getElementById('win-title');
+    const sub = document.getElementById('win-sub');
+    document.getElementById('result-card').classList.remove('hidden');
+
+    if (data.reason === 'draw') {
+        title.textContent = "Draw";
+        sub.textContent = "It's a tie!";
+        banner.classList.add('draw');
+    } else {
+        title.textContent = `${data.winnerName} wins!`;
+        sub.textContent = data.reason === 'abandonment' ? "Opponent abandoned the match" : `by ${data.reason}`;
+        banner.classList.remove('draw');
+    }
+});
 
     socket.on('opponent_disconnected', () => {
         document.getElementById('reconnect-modal').classList.remove('hidden');
@@ -184,6 +295,9 @@ function flipLayout() {
     }
 }
 
+// ⚡ THE BULLET ANIMATION ⚡
+
+// --- HISTORY & REWIND LOGIC ---
 // --- HISTORY & REWIND LOGIC ---
 function renderMoveList() {
     const list = document.getElementById('move-list');
@@ -200,17 +314,19 @@ function renderMoveList() {
         row.appendChild(num);
 
         for (let j = 0; j <= 1; j++) {
-            const idx = i + j;
-            const m = moveHistory[idx];
+            const moveIdx = i + j;
+            const m = moveHistory[moveIdx];
             const moveEl = document.createElement('div');
 
             if (m) {
-                // Determine if this is the exact move we are currently looking at
-                const isActive = (viewIdx !== -1 && viewIdx === idx + 1) || (viewIdx === -1 && idx === moveHistory.length - 1);
+                const fenIdx = moveIdx + 1; // Syncing SAN index with FEN index
+                
+                // Active if viewing this exact move, OR if live and it's the latest move
+                const isActive = (viewIdx !== -1 && viewIdx === fenIdx) || (viewIdx === -1 && moveIdx === moveHistory.length - 1);
+                
                 moveEl.className = 'move-san' + (isActive ? ' active' : '');
                 moveEl.textContent = m;
-                // Clicking the notation directly jumps to that move!
-                moveEl.addEventListener('click', () => navigateTo(idx + 1));
+                moveEl.addEventListener('click', () => navigateTo(fenIdx));
             } else {
                 moveEl.className = 'move-san empty';
             }
@@ -219,7 +335,7 @@ function renderMoveList() {
         list.appendChild(row);
     }
     
-    // Auto-scroll to the bottom of the list
+    // Smooth auto-scroll
     setTimeout(() => {
         const active = list.querySelector('.move-san.active');
         if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -227,29 +343,53 @@ function renderMoveList() {
 }
 
 function navigateTo(idx) {
-    if (idx <= 0) idx = 0;
-    if (idx >= historyFens.length - 1) idx = -1; // Snap to live
-    viewIdx = idx;
+    // 1. Boundary Logic
+    if (idx === -1 || idx >= historyFens.length - 1) {
+        viewIdx = -1; // Snap to Live
+    } else if (idx <= 0) {
+        viewIdx = 0;  // Snap to Start
+    } else {
+        viewIdx = idx;
+    }
     
-    // Choose the FEN to render: If -1, grab the latest. Otherwise grab the specific history FEN.
+    // 2. State Sync
     const fenToRender = viewIdx === -1 ? historyFens[historyFens.length - 1] : historyFens[viewIdx];
     localBoard = fenToBoardArray(fenToRender);
     
-    // Clear selections when analyzing history
     selectedSquareAlg = null;
     legalDestinations = [];
     
+    // 3. UX Toggle
+    const goLiveBtn = document.getElementById('go-live-btn');
+    const statusBar = document.getElementById('status-bar');
+    
+    if (viewIdx !== -1) {
+        document.querySelector('.board-section').style.opacity = '0.85'; // Dim board
+        statusBar.innerHTML = `<span style="color:#f39c12; font-weight:bold;">Analysis Mode</span>`;
+        if(goLiveBtn) goLiveBtn.classList.remove('hidden');
+    } else {
+        document.querySelector('.board-section').style.opacity = '1';
+        statusBar.innerHTML = `<div class="status-dot"></div> ${currentTurn === 'w' ? 'White' : 'Black'}'s Turn`;
+        if(goLiveBtn) goLiveBtn.classList.add('hidden');
+    }
+
     renderBoard();
     renderMoveList();
 }
 
-// Attach the navigation buttons
+// 4. Correctly Mapped Nav Buttons
 document.getElementById('btn-first')?.addEventListener('click', () => navigateTo(0));
-document.getElementById('btn-prev')?.addEventListener('click', () => navigateTo(viewIdx === -1 ? historyFens.length - 2 : viewIdx - 1));
-document.getElementById('btn-next')?.addEventListener('click', () => navigateTo(viewIdx === -1 ? -1 : viewIdx + 1));
+document.getElementById('btn-prev')?.addEventListener('click', () => {
+    if (viewIdx === 0) return; // Block going past start
+    navigateTo(viewIdx === -1 ? historyFens.length - 2 : viewIdx - 1);
+});
+document.getElementById('btn-next')?.addEventListener('click', () => {
+    if (viewIdx === -1) return; // Block going past live
+    navigateTo(viewIdx + 1);
+});
 document.getElementById('btn-last')?.addEventListener('click', () => navigateTo(-1));
 
-
+// --- CLOCK LOGIC ---
 // --- CLOCK LOGIC ---
 function startClock() {
     clearInterval(clockInterval);
@@ -270,6 +410,28 @@ function startClock() {
 
         document.getElementById('clock-white').innerText = formatTime(serverTimers.w);
         document.getElementById('clock-black').innerText = formatTime(serverTimers.b);
+
+        if (serverTimers[currentTurn] <= 0 && !isGameOver) {
+            isGameOver = true;
+            clearInterval(clockInterval);
+            
+            // Show the result card
+            document.getElementById('result-card').classList.remove('hidden');
+            const banner = document.getElementById('win-banner');
+            const title = document.getElementById('win-title');
+            const sub = document.getElementById('win-sub');
+            
+            // If White's clock ran out, Black wins. If Black's ran out, White wins.
+            const winnerName = currentTurn === 'w' ? 
+                document.getElementById('black-player-name').innerText : 
+                document.getElementById('white-player-name').innerText;
+                
+            title.textContent = `${winnerName} Wins!`;
+            sub.textContent = "by Timeout";
+            banner.classList.remove('draw');
+            socket.emit('timeout'); 
+        }
+
     }, 100); 
 }
 
@@ -326,11 +488,37 @@ function renderCaptures() {
     if(bScoreEl) bScoreEl.textContent = diff < 0 ? `+${Math.abs(diff)}` : '';
 }
 
-// --- RENDER & CLICK LOGIC ---
+let lastFiredMove = -1;
 function renderBoard() {
     const el = document.getElementById('board');
     el.innerHTML = '';
 
+    // 🚨 NEW: DYNAMIC CHECK DETECTION USING SAN NOTATION 🚨
+    let kingInCheckAlg = null;
+    let isCheckmate = false;
+    let captureSquareAlg = null;
+    
+    // Look at the most recent move played in the current view
+    const lastMoveIdx = viewIdx === -1 ? moveHistory.length - 1 : viewIdx - 1;
+    const lastMove = moveHistory[lastMoveIdx];
+
+    // If the last move has a '+' (Check) or '#' (Checkmate)
+    if (lastMove && (lastMove.endsWith('+') || lastMove.endsWith('#'))) {
+        // Even index means White moved, so Black's King is in check. Odd means White is in check.
+        const kingColor = (lastMoveIdx % 2 === 0) ? 'b' : 'w'; 
+        if (lastMove.endsWith('#')) isCheckmate = true;
+
+        // Find that King's square on the board
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (localBoard[r][c] === kingColor + 'K') {
+                    kingInCheckAlg = rcToAlg(r, c);
+                }
+            }
+        }
+    }
+
+    // DRAW THE SQUARES
     for (let ri = 0; ri < 8; ri++) {
         for (let ci = 0; ci < 8; ci++) {
             const r = boardFlipped ? 7 - ri : ri;
@@ -347,6 +535,12 @@ function renderBoard() {
                 sq.classList.add(localBoard[r][c] ? 'can-capture' : 'can-move');
             }
 
+            // 🚨 APPLY THE RED GLOW TO THE KING'S SQUARE 🚨
+            if (kingInCheckAlg === algSq) {
+                sq.classList.add('check');
+                if (isCheckmate) sq.classList.add('checkmate-flash');
+            }
+
             const piece = localBoard[r][c];
             if (piece) {
                 const pd = document.createElement('div');
@@ -361,12 +555,13 @@ function renderBoard() {
     }
     
     // Visually indicate if the user is analyzing history instead of playing
+    const statusBar = document.getElementById('status-bar');
     if (viewIdx !== -1) {
         document.querySelector('.board-section').style.opacity = '0.8';
-        document.getElementById('status-bar').innerHTML = `Analysing move ${viewIdx} <span style="color:#f39c12; cursor:pointer;" onclick="navigateTo(-1)">↩ Go Live</span>`;
+        if(statusBar) statusBar.innerHTML = `Analysing move ${viewIdx} <span style="color:#f39c12; cursor:pointer; font-weight:bold;" onclick="navigateTo(-1)">↩ Go Live</span>`;
     } else {
         document.querySelector('.board-section').style.opacity = '1';
-        document.getElementById('status-bar').innerHTML = `${currentTurn === 'w' ? 'White' : 'Black'}'s Turn`;
+        if(statusBar) statusBar.innerHTML = `<div class="status-dot"></div> ${currentTurn === 'w' ? 'White' : 'Black'}'s Turn`;
     }
 
     const rankEl = document.getElementById('rank-coords');
@@ -392,6 +587,21 @@ function renderBoard() {
     }
 
     renderCaptures();
+
+    if (isCheckmate && lastFiredMove !== lastMoveIdx) {
+        lastFiredMove = lastMoveIdx; // Mark as fired
+
+        // Extract the attacker's square using regex (e.g., "Qh4#" -> "h4")
+        const match = lastMove.match(/([a-h][1-8])(?:=[QRBN])?[+#]?$/);
+        const attackerAlg = match ? match[1] : null;
+
+        if (attackerAlg && kingInCheckAlg) {
+            // Wait 50ms to ensure the board is fully visible on the screen, then fire!
+            setTimeout(() => {
+                shootProjectile(attackerAlg, kingInCheckAlg);
+            }, 50);
+        }
+    }
 }
 
 function onSquareClick(clickedAlgSq) {
@@ -527,12 +737,34 @@ if (btnRematch) {
     });
 }
 
-// --- 4. LIVE CHAT LOGIC ---
 const chatInput = document.getElementById('chat-input');
 const chatBtn = document.getElementById('btn-send-chat');
 const chatBox = document.getElementById('chat-messages');
 
+// 🚨 1. Create a unique storage key for this specific match room
+const chatStorageKey = `chat_${partyCode}`;
+
+// Helper function to draw a message to the screen
+function appendChatMessage(data) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'chat-bubble';
+    
+    let nameColor = '#aaa'; 
+    if (data.color === 'w') nameColor = '#e8e6e3'; 
+    if (data.color === 'b') nameColor = '#81b64c'; // Matches your green theme
+
+    msgDiv.innerHTML = `<span style="color: ${nameColor}; font-weight: bold; margin-right: 5px;">${data.sender}:</span><span>${data.text}</span>`;
+    chatBox.appendChild(msgDiv);
+    
+    // Auto-scroll to bottom smoothly
+    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+}
+
 if (chatBtn && chatInput) {
+    // 🚨 2. LOAD SAVED CHATS ON PAGE REFRESH 🚨
+    const savedChat = JSON.parse(sessionStorage.getItem(chatStorageKey) || '[]');
+    savedChat.forEach(msg => appendChatMessage(msg));
+
     // Send message on click
     chatBtn.addEventListener('click', () => {
         if (chatInput.value.trim() !== '') {
@@ -546,20 +778,14 @@ if (chatBtn && chatInput) {
         if (e.key === 'Enter') chatBtn.click();
     });
 
-    // Receive message
+    // Receive message from server
     socket.on('receive_chat', (data) => {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'chat-bubble';
+        appendChatMessage(data);
         
-        let nameColor = '#aaa'; 
-        if (data.color === 'w') nameColor = '#e8e6e3'; // White player
-        if (data.color === 'b') nameColor = '#7fa650'; // Black player
-
-        msgDiv.innerHTML = `<span style="color: ${nameColor}; font-weight: bold; margin-right: 5px;">${data.sender}:</span><span>${data.text}</span>`;
-        chatBox.appendChild(msgDiv);
-        
-        // Auto-scroll to bottom smoothly
-        chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+        // 🚨 3. SAVE NEW CHAT TO TEMPORARY STORAGE 🚨
+        const history = JSON.parse(sessionStorage.getItem(chatStorageKey) || '[]');
+        history.push(data);
+        sessionStorage.setItem(chatStorageKey, JSON.stringify(history));
     });
 }
 
