@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analysis Engine - GambitCore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    
+    <style>
+        :root {
+            --bg-body: #312e2b; --bg-panel: #262421; --bg-list: #21201d; --bg-nav: #272522;
+            --text-main: #ffffff; --text-dim: #989795; --border-color: #403d39;
+            --btn-bg: #3c3a38; --btn-hover: #53514e;
+            
+            /* High-Accuracy Move Classifications */
+            --c-best: #81b64c; --c-excellent: #5bc0be; --c-good: #95bb4a;
+            --c-book: #d5a47d; --c-inaccuracy: #f3ca2f; --c-mistake: #ffa417;
+            --c-blunder: #fa412d; --c-great: #1abc9c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Nunito', sans-serif; min-height: 100vh; overflow-x: hidden; display: flex; flex-direction: column; }
+        
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(49, 46, 43, 0.95); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .spinner {
+            width: 60px; height: 60px; border: 6px solid var(--border-color);
+            border-top-color: var(--c-best); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        #loading-text { font-family: 'Montserrat'; font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 10px; }
+        #loading-subtext { font-size: 0.9rem; color: var(--text-dim); }
+
+        /* Navbar */
+        .navbar { height: 50px; background-color: var(--bg-nav); display: flex; align-items: center; padding: 0 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-shrink: 0; }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 800; color: white; text-decoration: none; }
+        .logo span { color: var(--c-best); }
+        .nav-link { margin-left: auto; color: var(--text-dim); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s; }
+        .nav-link:hover { color: white; }
+        
+        /* Layout */
+        .layout-container { display: flex; justify-content: center; max-width: 1400px; margin: 0 auto; padding: 20px; gap: 20px; width: 100%; height: calc(100vh - 50px); filter: blur(0px); transition: filter 0.5s; }
+        .layout-container.blur { filter: blur(5px); pointer-events: none; }
+
+        /* Board Area */
+        .board-column { display: flex; align-items: center; height: 100%; min-width: 0; }
+        .board-wrapper { display: flex; height: 100%; max-height: 85vh; aspect-ratio: auto; }
+
+        /* Eval Bar */
+        .eval-bar-container { width: 28px; background: #403d39; border-radius: 4px 0 0 4px; position: relative; overflow: hidden; display: flex; flex-direction: column-reverse; margin-right: 2px; }
+        .eval-fill { background: #ffffff; width: 100%; height: 50%; transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .eval-text { position: absolute; width: 100%; text-align: center; font-weight: 700; font-size: 0.65rem; z-index: 10; padding: 4px 0; color: var(--c-good); }
+        .eval-text.top { top: 0; color: #000; }
+        .eval-text.bottom { bottom: 0; color: #fff; }
+
+        #board { height: 100%; aspect-ratio: 1/1; border-radius: 0 4px 4px 0; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar-column { width: 450px; background: var(--bg-panel); border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; overflow: hidden; }
+        .sidebar-header { padding: 12px 16px; background: #1e1c1a; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600; }
+        
+        .engine-panel { padding: 12px 16px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .eval-score { font-size: 1.5rem; font-weight: 700; font-family: 'Montserrat'; }
+        .engine-depth { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; font-weight: 600; }
+
+        /* Move List */
+        .move-list-wrapper { flex: 1; background: var(--bg-list); overflow-y: auto; position: relative; }
+        .move-row { display: grid; grid-template-columns: 45px 1fr 1fr; border-bottom: 1px solid #2a2926; font-size: 0.95rem; font-weight: 700; font-family: 'Montserrat'; }
+        .move-row:nth-child(even) { background: #262421; }
+        .move-num { color: #6b6967; padding: 8px 0; text-align: center; background: #1e1c1a; border-right: 1px solid #2a2926; }
+        .move-san { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.1s; border-radius: 2px; }
+        .move-san:hover { background: #33312e; }
+        .move-san.active { background: #4a4844; color: #fff !important; }
+
+        .color-best { color: var(--c-best); }
+        .color-excellent { color: var(--c-excellent); }
+        .color-good { color: var(--c-good); }
+        .color-book { color: var(--c-book); }
+        .color-inaccuracy { color: var(--c-inaccuracy); }
+        .color-mistake { color: var(--c-mistake); }
+        .color-blunder { color: var(--c-blunder); }
+        .color-great { color: var(--c-great); }
+        .move-symbol { font-size: 0.8em; font-weight: 900; }
+
+        /* Controls */
+        .controls-panel { display: flex; background: #2c2a27; padding: 10px 16px; gap: 8px; border-top: 1px solid var(--border-color); }
+        .btn-ctrl { flex: 1; padding: 10px; background: var(--btn-bg); border: none; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 1.2rem; display: flex; justify-content: center; align-items: center; transition: 0.1s; }
+        .btn-ctrl:hover { background: var(--btn-hover); color: #fff; }
+
+        /* Board Highlights & GPU Animations */
+        .highlight-best { box-shadow: inset 0 0 0 4px rgba(129, 182, 76, 0.8) !important; }
+
+        .square-blunder { animation: blunderFlash 1.5s ease-out forwards !important; }
+        .square-great   { animation: greatFlash 1.5s ease-out forwards !important; }
+        .square-best    { animation: bestFlash 1.5s ease-out forwards !important; }
+        .king-checkmate {
+    box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.9) !important;
+    background-color: rgba(255, 0, 0, 0.6) !important;
+}
+        @keyframes blunderFlash {
+            0%   { background-color: rgba(250, 65, 45, 0.9); }
+            10%  { background-color: rgba(250, 65, 45, 0.9); transform: translateX(-2px); }
+            20%  { background-color: rgba(250, 65, 45, 0.9); transform: translateX(2px); }
+            30%  { background-color: rgba(250, 65, 45, 0.8); transform: translateX(0); }
+            100% { background-color: rgba(250, 65, 45, 0.35); } 
+        }
+        @keyframes greatFlash {
+            0%   { background-color: rgba(26, 188, 156, 1); box-shadow: inset 0 0 20px rgba(255,255,255,0.4); }
+            100% { background-color: rgba(26, 188, 156, 0.4); box-shadow: inset 0 0 0 transparent; }
+        }
+        @keyframes bestFlash {
+            0%   { background-color: rgba(129, 182, 76, 0.9); }
+            100% { background-color: rgba(129, 182, 76, 0.35); }
+        }
+
+        /* Mobile */
+        @media (max-width: 900px) {
+            .layout-container { flex-direction: column; padding: 0; gap: 0; height: auto; }
+            .board-column { width: 100%; justify-content: center; }
+            .board-wrapper { width: 100vw; max-height: 100vw; }
+            .eval-bar-container { width: 28px; min-width: 16px; border-radius: 0; }
+            #board { width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; border-radius: 0; }
+            .sidebar-column { width: 100%; border-radius: 0; box-shadow: none; flex: 1; min-height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Deep Analysis Engine</div>
+        <div id="loading-subtext">Pre-computing game variations... 0%</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="/dashboard" class="logo">♚ Gambit<span>Core</span></a>
+        <a href="/dashboard" class="nav-link">← Dashboard</a>
+    </nav>
+
+    <div class="layout-container blur" id="main-layout">
+        <div class="board-column">
+            <div class="board-wrapper">
+                <div class="eval-bar-container">
+                    <div class="eval-text top" id="eval-w">0.0</div>
+                    <div class="eval-text bottom" id="eval-b" style="display:none;">0.0</div>
+                    <div class="eval-fill" id="eval-bar"></div>
+                </div>
+                <div id="board"></div>
+            </div>
+        </div>
+
+        <div class="sidebar-column">
+            <div class="sidebar-header">
+                <span style="color: #fff;">♔ <%= typeof gameData !== 'undefined' ? gameData.whitePlayer : 'White' %></span>
+                <span style="color: #aaa;">vs</span>
+                <span style="color: #000; text-shadow: 0 0 1px #888;">♚ <%= typeof gameData !== 'undefined' ? gameData.blackPlayer : 'Black' %></span>
+            </div>
+            
+            <div class="engine-panel">
+                <div>
+                    <div class="eval-score" id="engine-score">+0.00</div>
+                    <div class="engine-depth">Stockfish 10 • Depth <span id="engine-depth">0</span></div>
+                </div>
+                <div id="best-move-ui" style="font-size: 0.85rem; font-weight: 700; color: var(--text-dim);">★ --</div>
+            </div>
+
+            <div class="move-list-wrapper" id="move-list-container"></div>
+
+            <div class="controls-panel">
+                <button class="btn-ctrl" onclick="analyzer.goToStart()">⏮</button>
+                <button class="btn-ctrl" onclick="analyzer.goToPrev()">◀</button>
+                <button class="btn-ctrl" onclick="analyzer.goToNext()">▶</button>
+                <button class="btn-ctrl" onclick="analyzer.goToEnd()">⏭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+    <script>
+        const rawPgn = `<%- typeof gameData !== 'undefined' ? gameData.pgn : '' %>`;
+
+        // -------------------------------------------------------------
+        // 📚 1. OPENING BOOK DETECTOR
+        // -------------------------------------------------------------
+        class OpeningBook {
+            constructor() {
+                // Simplified Trie/Prefix mappings for major openings
+                this.bookLines = [
+                    ["e4", "e5", "Nf3", "Nc6", "Bb5"], // Ruy Lopez
+                    ["e4", "c5", "Nf3", "d6", "d4"], // Sicilian
+                    ["e4", "e6", "d4", "d5"], // French
+                    ["e4", "c6", "d4", "d5"], // Caro-Kann
+                    ["d4", "d5", "c4", "e6", "Nc3"], // QGD
+                    ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7"], // King's Indian
+                ];
+                this.inBook = true; 
+            }
+
+            // Checks if the move history EXACTLY matches a known opening line
+            isBookMove(moveHistorySan) {
+                if (!this.inBook) return false;
+
+                const isMatch = this.bookLines.some(line => {
+                    if (moveHistorySan.length > line.length) return false;
+                    for (let i = 0; i < moveHistorySan.length; i++) {
+                        if (moveHistorySan[i] !== line[i]) return false;
+                    }
+                    return true;
+                });
+
+                if (!isMatch) this.inBook = false; // Deviation found. Stop checking forever.
+                return isMatch;
+            }
+        }
+
+        // -------------------------------------------------------------
+        // ⚡ 2. PROMISE-BASED ENGINE MANAGER
+        // -------------------------------------------------------------
+        class EngineManager {
+            constructor() {
+                const stockfishUrl = 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js';
+                const blob = new Blob([`importScripts('${stockfishUrl}');`], {type: 'application/javascript'});
+                this.engine = new Worker(URL.createObjectURL(blob));
+                
+                this.isReady = false;
+                this.currentResolve = null;
+                this.currentData = { multipv: {}, depth: 0 };
+                this.timeoutId = null;
+
+                this.engine.onmessage = (e) => this.handleMessage(e.data);
+                this.engine.postMessage('uci');
+            }
+
+            handleMessage(line) {
+                if (line === 'uciok') {
+                    this.engine.postMessage('setoption name MultiPV value 3');
+                    this.engine.postMessage('isready');
+                }
+                if (line === 'readyok') this.isReady = true;
+
+                // Capture Continuous Info Stream
+                if (line.startsWith('info depth')) {
+                    const depthMatch = line.match(/depth (\d+)/);
+                    const pvMatch = line.match(/multipv (\d+)/);
+                    const cpMatch = line.match(/score cp (-?\d+)/);
+                    const mateMatch = line.match(/score mate (-?\d+)/);
+                    const moveMatch = line.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
+
+                    if (depthMatch) this.currentData.depth = parseInt(depthMatch[1]);
+
+                    if (pvMatch && moveMatch) {
+                        const pvIndex = parseInt(pvMatch[1]);
+                        let score = 0, mate = null;
+                        
+                        // Convert directly to Pawns for Loss Math
+                        if (cpMatch) score = parseInt(cpMatch[1]) / 100;
+                        if (mateMatch) mate = parseInt(mateMatch[1]);
+                        
+                        this.currentData.multipv[pvIndex] = { move: moveMatch[1], score: score, mate: mate };
+                    }
+                }
+
+                // Never rely on bestmove string directly. We only use it as a termination signal.
+                if (line.startsWith('bestmove')) this.safeResolve();
+            }
+
+            safeResolve() {
+                if (!this.currentResolve) return;
+                // STRICT CONTRACT: Must have multipv[1] populated
+                if (this.currentData.multipv[1] && this.currentData.multipv[1].move) {
+                    if (this.timeoutId) clearTimeout(this.timeoutId);
+                    const finalData = JSON.parse(JSON.stringify(this.currentData));
+                    this.currentResolve(finalData);
+                    this.currentResolve = null;
+                }
+            }
+
+            async evaluate(fen, plyCount) {
+                return new Promise((resolve) => {
+                    this.currentData = { multipv: {}, depth: 0 };
+                    this.currentResolve = resolve;
+                    
+                    // 🚀 Adaptive Movetime
+                    let movetime = 500; 
+                    if (plyCount <= 16) movetime = 500;       // Opening
+                    else if (plyCount > 60) movetime = 1500;  // Endgame
+                    else movetime = 1200;                     // Middlegame
+
+                    this.engine.postMessage(`position fen ${fen}`);
+                    this.engine.postMessage(`go movetime ${movetime}`);
+
+                    // 🛡️ Safe Timeout (Wait for movetime + buffer. Stop if engine hangs)
+                    this.timeoutId = setTimeout(() => {
+                        if (this.currentResolve) {
+                            if (this.currentData.multipv[1] && this.currentData.multipv[1].move) {
+                                this.safeResolve();
+                            } else {
+                                this.engine.postMessage('stop'); // Force buffer flush
+                            }
+                        }
+                    }, movetime + 300);
+                });
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 🧠 3. EVALUATION LOSS CLASSIFIER (Chess.com Standard)
+        // -------------------------------------------------------------
+        class MoveClassifier {
+            static classify(playedMove, prevMultiPv, currMultiPv, isWhiteJustMoved) {
+                // Safety logic
+                if (!prevMultiPv || !currMultiPv || !prevMultiPv[1] || !currMultiPv[1]) {
+                    return { category: 'good', class: 'color-good', symbol: '✓' };
+                }
+
+                // If played exactly the engine's favorite move -> Best
+                if (playedMove === prevMultiPv[1].move) {
+                    return { category: 'best', class: 'color-best', symbol: '★', anim: 'square-best' };
+                }
+
+                // Extract scores
+                let evalBefore = prevMultiPv[1].score;
+                let evalAfter = currMultiPv[1].score;
+
+                // Handle Mate Conversions (Mate = 100 pawns)
+                if (prevMultiPv[1].mate !== null) evalBefore = prevMultiPv[1].mate > 0 ? 100 : -100;
+                if (currMultiPv[1].mate !== null) evalAfter = currMultiPv[1].mate > 0 ? 100 : -100;
+
+                // Ensure BOTH values are from the perspective of the player who JUST moved
+                // prevMultiPv was from their perspective. currMultiPv is from NEXT player's perspective, so invert it.
+                evalAfter = -evalAfter;
+
+                // EVALUATION LOSS = Best Possible Outcome - Actual Outcome
+                let loss = evalBefore - evalAfter;
+
+                // Mate Override Rules
+                if (currMultiPv[1].mate !== null) {
+                    if (currMultiPv[1].mate > 0) {
+                        // The NEXT player has forced mate. The player who moved blundered.
+                        return { category: 'blunder', class: 'color-blunder', symbol: '??', anim: 'square-blunder' };
+                    }
+                }
+
+                // Standard Loss Thresholds
+                if (loss <= 0.1) return { category: 'best', class: 'color-best', symbol: '★', anim: 'square-best' };
+                if (loss <= 0.3) return { category: 'excellent', class: 'color-excellent', symbol: '!' };
+                if (loss <= 0.7) return { category: 'good', class: 'color-good', symbol: '✓' };
+                if (loss <= 1.5) return { category: 'inaccuracy', class: 'color-inaccuracy', symbol: '?!' };
+                if (loss <= 3.0) return { category: 'mistake', class: 'color-mistake', symbol: '?' };
+                
+                return { category: 'blunder', class: 'color-blunder', symbol: '??', anim: 'square-blunder' };
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 🚀 4. MAIN ANALYSIS ORCHESTRATOR
+        // -------------------------------------------------------------
+        class ChessAnalysisSystem {
+            constructor(pgn, boardElementId) {
+                this.game = new Chess();
+                this.game.load_pgn(pgn || ""); // Fallback if empty
+                this.historyVerbose = this.game.history({ verbose: true });
+                this.historySan = this.game.history();
+                
+                this.game.reset();
+                this.fens = [this.game.fen()];
+                for (let move of this.historySan) {
+                    this.game.move(move);
+                    this.fens.push(this.game.fen());
+                }
+
+                this.currentPly = 0;
+                
+                // Final Data Structure
+                this.analysisData = new Array(this.fens.length).fill(null);
+                
+                this.engine = new EngineManager();
+                this.book = new OpeningBook();
+                
+                const config = {
+                    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+                    position: 'start', showNotation: false
+                };
+                this.board = Chessboard(boardElementId, config);
+
+                this.startPreComputation(); 
+
+                // Resizing logic
+                setTimeout(() => { this.board.resize(); }, 250);
+                window.addEventListener('resize', () => { setTimeout(() => { this.board.resize(); }, 100); });
+            }
+
+            async startPreComputation() {
+                while (!this.engine.isReady) await new Promise(r => setTimeout(r, 100));
+
+                const tempGame = new Chess();
+                let currentLineSan = [];
+
+                for (let i = 0; i < this.fens.length; i++) {
+                    tempGame.load(this.fens[i]);
+                    if (i > 0) currentLineSan.push(this.historySan[i-1]);
+
+                    let isBookMove = false;
+                    let classificationObj = null;
+                    let evalData = null;
+
+                    // 1. Is Game Over?
+                    if (tempGame.game_over()) {
+                        let isMate = tempGame.in_checkmate();
+                        evalData = { depth: 0, multipv: { 1: { move: null, score: 0, mate: isMate ? 0 : null } } };
+                    } 
+                    // 2. Is it a Book Move?
+                    else if (i > 0 && this.book.isBookMove(currentLineSan)) {
+                        isBookMove = true;
+                        // Give it a generic 0.0 eval so UI doesn't break, but mark as book
+                        evalData = { depth: 0, multipv: { 1: { move: null, score: 0, mate: null } } };
+                        classificationObj = { category: 'book', class: 'color-book', symbol: '📘' };
+                    } 
+                    // 3. Normal Engine Evaluation
+                    else {
+                        evalData = await this.engine.evaluate(this.fens[i], i); 
+                    }
+
+                    // Save the raw Engine snapshot
+                    this.analysisData[i] = {
+                        fen: this.fens[i],
+                        eval: evalData,
+                        bestMove: evalData.multipv[1]?.move,
+                        topMoves: evalData.multipv,
+                        depth: evalData.depth,
+                        isBookMove: isBookMove,
+                        classification: null // To be filled by next step
+                    };
+
+                    // Backtrack to classify the move that got us here
+                    if (i > 0 && !isBookMove) {
+                        const prevData = this.analysisData[i-1];
+                        const playedMove = this.historyVerbose[i-1].from + this.historyVerbose[i-1].to;
+                        const isWhiteJustMoved = i % 2 !== 0;
+
+                        // Only classify if previous move wasn't a book move (need valid prev eval)
+                        if (prevData && prevData.eval && !prevData.isBookMove) {
+                            classificationObj = MoveClassifier.classify(
+                                playedMove,
+                                prevData.eval.multipv, 
+                                evalData.multipv,        
+                                isWhiteJustMoved
+                            );
+                        } else {
+                            // First move out of book gets a generic "Good" to transition smoothly
+                            classificationObj = { category: 'good', class: 'color-good', symbol: '✓' };
+                        }
+                    }
+
+                    // Save Classification to the state that *resulted* from the move
+                    if (i > 0) this.analysisData[i].classification = classificationObj;
+
+                    // Update Loading Screen
+                    const pct = Math.round((i / (this.fens.length - 1)) * 100) || 0;
+                    document.getElementById('loading-subtext').innerText = `Pre-computing game variations... ${pct}%`;
+                }
+
+                // Analysis Complete -> Unlock UI
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('main-layout').classList.remove('blur');
+                this.initUI();
+            }
+
+            initUI() {
+                this.renderMoveList();
+                this.goToPly(0);
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowRight') this.goToNext();
+                    if (e.key === 'ArrowLeft') this.goToPrev();
+                });
+            }
+
+            goToNext() { this.goToPly(this.currentPly + 1); }
+            goToPrev() { this.goToPly(this.currentPly - 1); }
+            goToStart() { this.goToPly(0); }
+            goToEnd() { this.goToPly(this.fens.length - 1); }
+
+            goToPly(ply) {
+                if (ply < 0 || ply >= this.fens.length) return;
+                this.currentPly = ply;
+                
+                // 👈 NEW: Sync the logic engine with the visual board!
+                this.game.load(this.fens[ply]); 
+                
+                this.board.position(this.fens[ply], false);
+                
+                this.updateActiveMoveUI();
+                this.applyAnimations();
+                this.updateEvalBar();
+            }
+
+            updateEvalBar() {
+                const data = this.analysisData[this.currentPly];
+                const scoreEl = document.getElementById('engine-score');
+                const depthEl = document.getElementById('engine-depth');
+                const bar = document.getElementById('eval-bar');
+                const evalW = document.getElementById('eval-w');
+                const evalB = document.getElementById('eval-b');
+
+                depthEl.innerText = data.depth || 0;
+
+                if (data.isBookMove) {
+                    scoreEl.innerText = "Book";
+                    scoreEl.style.color = "var(--c-book)";
+                    bar.style.height = '50%';
+                    evalW.style.display = 'none'; evalB.style.display = 'none';
+                    return;
+                }
+
+                if (!data.eval || !data.eval.multipv[1]) {
+                    scoreEl.innerText = "...";
+                    return;
+                }
+
+                let score = data.eval.multipv[1].score;
+                let mate = data.eval.multipv[1].mate;
+                let isWhiteToMove = this.currentPly % 2 === 0;
+                
+                // MATE UI LOGIC (-M0 BUG FIX)
+                if (mate !== null) {
+                    let visualMate = isWhiteToMove ? mate : -mate;
+                    if (mate === 0) visualMate = isWhiteToMove ? -1 : 1; // Game over fallback
+                    
+                    scoreEl.innerText = visualMate > 0 ? `+M${Math.abs(visualMate)}` : `-M${Math.abs(visualMate)}`;
+                    bar.style.height = visualMate > 0 ? '100%' : '0%';
+                    scoreEl.style.color = visualMate > 0 ? '#fff' : '#000';
+                    evalW.innerText = scoreEl.innerText; evalW.style.display = visualMate > 0 ? 'block' : 'none';
+                    evalB.innerText = scoreEl.innerText; evalB.style.display = visualMate < 0 ? 'block' : 'none';
+                    return;
+                }
+
+                // STANDARD EVAL UI
+                if (!isWhiteToMove) score = -score; // Convert perspective
+                
+                scoreEl.innerText = score > 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
+                scoreEl.style.color = score > 0 ? 'var(--text-main)' : 'var(--text-dim)';
+                
+                let visualScore = Math.max(-8, Math.min(8, score));
+                let percent = 50 + (visualScore * 6.25);
+                bar.style.height = `${percent}%`;
+
+                if (score >= 0) {
+                    evalW.innerText = score.toFixed(1);
+                    evalW.style.display = 'block'; evalB.style.display = 'none';
+                } else {
+                    evalB.innerText = Math.abs(score).toFixed(1);
+                    evalW.style.display = 'none'; evalB.style.display = 'block';
+                }
+            }
+
+            applyAnimations() {
+                // 1. Clear all previous animations (added 'king-checkmate' to the clear list)
+                document.querySelectorAll('.square-55d63').forEach(el => {
+                    el.classList.remove('highlight-best', 'square-blunder', 'square-great', 'square-best', 'king-checkmate');
+                });
+
+                // --- 2. NEW: CHECKMATE LOGIC ---
+                if (this.game.in_checkmate()) {
+                    const matedColor = this.game.turn(); // The person whose turn it is, is the one in checkmate
+                    let kingSq = null;
+                    
+                    // Scan the board to find the mated King's coordinates
+                    this.game.board().forEach((row, r) => {
+                        row.forEach((piece, c) => {
+                            if (piece && piece.type === 'k' && piece.color === matedColor) {
+                                kingSq = String.fromCharCode(97 + c) + (8 - r);
+                            }
+                        });
+                    });
+                    
+                    // Apply the glowing red effect
+                    if (kingSq) {
+                        const sqEl = document.querySelector(`.square-${kingSq}`);
+                        if (sqEl) sqEl.classList.add('king-checkmate');
+                    }
+                }
+                // --------------------------------
+
+                // 3. Highlight the Engine's Best Move
+                const data = this.analysisData[this.currentPly];
+                const bestMoveText = document.getElementById('best-move-ui');
+                
+                if (data.bestMove && !data.isBookMove) {
+                    const from = data.bestMove.substring(0, 2);
+                    const to = data.bestMove.substring(2, 4);
+                    document.querySelector(`.square-${from}`)?.classList.add('highlight-best');
+                    document.querySelector(`.square-${to}`)?.classList.add('highlight-best');
+                    
+                    bestMoveText.innerHTML = `★ ${data.bestMove}`;
+                    bestMoveText.style.color = 'var(--c-best)';
+                } else {
+                    bestMoveText.innerHTML = data.isBookMove ? `📘 Book` : `★ --`;
+                    bestMoveText.style.color = data.isBookMove ? 'var(--c-book)' : 'var(--text-dim)';
+                }
+
+                // 4. Trigger Blunder/Great animations
+                if (this.currentPly > 0) {
+                    const classification = data.classification;
+                    const lastMove = this.historyVerbose[this.currentPly - 1];
+                    
+                    if (classification && classification.anim) {
+                        const targetSquare = document.querySelector(`.square-${lastMove.to}`);
+                        if (targetSquare) {
+                            void targetSquare.offsetWidth; // Force Reflow to restart animation
+                            targetSquare.classList.add(classification.anim);
+                        }
+                    }
+                }
+            }
+
+            updateActiveMoveUI() {
+                document.querySelectorAll('.move-san').forEach(el => el.classList.remove('active'));
+                if (this.currentPly > 0) {
+                    const activeMove = document.getElementById(`move-${this.currentPly}`);
+                    if (activeMove) {
+                        activeMove.classList.add('active');
+                        activeMove.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+                    }
+                }
+            }
+
+            renderMoveList() {
+                const list = document.getElementById('move-list-container');
+                let html = '';
+                for (let i = 0; i < this.historySan.length; i += 2) {
+                    const moveNum = (i / 2) + 1;
+                    
+                    // The classification for ply 1 is stored at index 1 of analysisData
+                    const wC = this.analysisData[i + 1]?.classification || { class: '', symbol: '' };
+                    const bC = this.analysisData[i + 2]?.classification || { class: '', symbol: '' };
+
+                    const wText = this.historySan[i];
+                    const bText = this.historySan[i + 1] ? this.historySan[i + 1] : '';
+
+                    html += `
+                        <div class="move-row">
+                            <div class="move-num">${moveNum}</div>
+                            <div id="move-${i + 1}" class="move-san" onclick="analyzer.goToPly(${i + 1})">
+                                <span class="${wC.class}">${wText}</span>
+                                <span class="move-symbol ${wC.class}">${wC.symbol}</span>
+                            </div>
+                            <div id="move-${i + 2}" class="move-san" onclick="analyzer.goToPly(${i + 2})">
+                                <span class="${bC.class}">${bText}</span>
+                                <span class="move-symbol ${bC.class}">${bC.symbol}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                list.innerHTML = html;
+            }
+        }
+
+        // Boot
+        let analyzer;
+        $(document).ready(() => {
+            analyzer = new ChessAnalysisSystem(rawPgn, 'board');
+        });
+    </script>
+</body>
+</html>

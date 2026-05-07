@@ -1,12 +1,3 @@
-/* ============================================================
-   PIECES.JS  –  SVG piece definitions
-   White pieces: outlined (white fill, black stroke)
-   Black pieces: solid (dark fill, black stroke + light details)
-
-   SVG paths sourced from Wikimedia Chess pieces (public domain).
-   viewBox is 45×45 for all pieces.
-   ============================================================ */
-
 'use strict';
 
 /* Unicode fallback used in captured-pieces display */

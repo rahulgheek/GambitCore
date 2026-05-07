@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GambitCore - Multiplayer Chess</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;800;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -17,7 +17,6 @@
             background-image: radial-gradient(circle at 50% 0%, #2a2a2a 0%, #1a1a1a 70%);
         }
 
-        /* --- NAVBAR --- */
         nav {
             display: flex; justify-content: space-between; align-items: center;
             padding: 25px 50px; position: absolute; top: 0; width: 100%; z-index: 10;
@@ -34,7 +33,6 @@
         .btn-register { background: #81b64c; color: white; box-shadow: 0 4px 0 #537a31; }
         .btn-register:hover { transform: translateY(2px); box-shadow: 0 2px 0 #537a31; }
 
-        /* --- HERO SECTION --- */
         .hero {
             min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
             text-align: center; position: relative; padding: 0 20px;
@@ -51,7 +49,6 @@
             user-select: none; pointer-events: none;
         }
 
-        /* --- SYLLABUS FEATURES --- */
         .section-padding { padding: 100px 30px; max-width: 1200px; margin: 0 auto; }
         .section-header { font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 900; text-align: center; margin-bottom: 60px; color: #fff; }
         .section-header span { color: #81b64c; }
@@ -67,7 +64,6 @@
         .f-title { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 10px; color: #fff; }
         .f-text { color: #888; line-height: 1.6; }
 
-        /* --- TECH STACK SECTION --- */
         .tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
         .tech-item {
             background: #262421; padding: 30px; border-radius: 12px; text-align: center; border: 1px solid #3c3a38;
@@ -75,7 +71,6 @@
         .tech-item h4 { font-family: 'Montserrat', sans-serif; font-size: 1.3rem; margin-bottom: 10px; color: #fff; }
         .tech-item p { color: #aaa; font-size: 0.95rem; }
         
-        /* --- GLOBAL STATS SECTION --- */
         .stats-banner {
             background: linear-gradient(135deg, #1e1c1a 0%, #262421 100%);
             border-top: 1px solid #3c3a38; border-bottom: 1px solid #3c3a38;
@@ -87,7 +82,6 @@
 
         footer { text-align: center; padding: 40px; color: #666; font-size: 0.9rem; border-top: 1px solid #222; margin-top: 50px; }
 
-        /* --- AUTH MODAL --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
@@ -113,50 +107,19 @@
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #888; }
         .close-btn:hover { color: #fff; }
 
-        /* ============================================================
-           📱 MOBILE RESPONSIVENESS FIXES
-           ============================================================ */
         @media (max-width: 768px) {
-            /* 1. Navbar adjustments */
-            nav {
-                padding: 15px 20px;
-                flex-direction: column; /* Stacks logo above buttons */
-                gap: 15px;
-            }
+            nav { padding: 15px 20px; flex-direction: column; gap: 15px; }
             .logo { font-size: 1.8rem; }
             .btn { padding: 8px 18px; font-size: 0.9rem; }
-
-            /* 2. Hero Section scaling */
-            .hero-title {
-                font-size: 2.8rem; /* Scaled down from 5.5rem */
-                margin-top: 80px;  /* Pushes text down so stacked nav doesn't cover it */
-            }
-            .hero-sub {
-                font-size: 1.1rem;
-                padding: 0 10px;
-                margin-bottom: 30px;
-            }
+            .hero-title { font-size: 2.8rem; margin-top: 80px; }
+            .hero-sub { font-size: 1.1rem; padding: 0 10px; margin-bottom: 30px; }
             .hero-cta { padding: 14px 30px; font-size: 1.1rem; }
-
-            /* 3. Tame the floating chess pieces */
-            .floating-piece {
-                font-size: 3.5rem; /* Shrinks them so they don't block the screen */
-                opacity: 0.02;     /* Dims them slightly more on mobile */
-            }
-
-            /* 4. Section & Typography adjustments */
+            .floating-piece { font-size: 3.5rem; opacity: 0.02; }
             .section-padding { padding: 60px 20px; }
             .section-header { font-size: 2.2rem; margin-bottom: 40px; }
-            
-            /* 5. Stats Banner scaling */
             .stats-banner { padding: 50px 20px; gap: 30px; }
             .stat-number { font-size: 3rem; }
-            
-            /* 6. Auth Modal constraints */
-            .auth-box {
-                width: 90%;
-                padding: 30px 20px;
-            }
+            .auth-box { width: 90%; padding: 30px 20px; }
             .auth-title { font-size: 1.6rem; }
         }
     </style>
@@ -186,7 +149,6 @@
     <section class="hero">
         <h1 class="hero-title gsap-hero">Master the<br>Digital Board.</h1>
         <p class="hero-sub gsap-hero">Experience real-time, authoritative multiplayer chess built from the ground up on Node.js and Socket.io.</p>
-        
         <div class="gsap-hero">
             <% if (locals.username) { %>
                 <button class="btn btn-register hero-cta" onclick="window.location.href='/matchmaking'">Play Now</button>
@@ -241,7 +203,8 @@
 
     <section class="stats-banner">
         <div class="stat-block">
-            <div class="stat-number">2882</div>
+            <%# FIX: highestElo is now a real value queried from MongoDB, not a hardcoded 2882 %>
+            <div class="stat-number" id="stat-elo"><%= highestElo %></div>
             <div class="stat-label">Highest Elo</div>
         </div>
         <div class="stat-block">
@@ -263,14 +226,12 @@
             <div class="close-btn" onclick="closeAuth()">✕</div>
             <h2 class="auth-title" id="auth-title">Welcome Back</h2>
             <div class="error-msg" id="auth-error"></div>
-            
             <form id="auth-form" onsubmit="handleAuth(event)">
                 <input type="text" id="username" class="auth-input" placeholder="Username" style="display: none;">
                 <input type="email" id="email" class="auth-input" placeholder="Email Address" required>
                 <input type="password" id="password" class="auth-input" placeholder="Password" required>
                 <button type="submit" class="btn btn-register" id="auth-submit-btn" style="width: 100%; padding: 15px; font-size: 1.2rem; margin-top: 10px;">Log In</button>
             </form>
-
             <div class="auth-toggle" id="auth-toggle-text">
                 Don't have an account? <span onclick="openAuth('register')">Sign Up</span>
             </div>
@@ -278,49 +239,41 @@
     </div>
 
     <script>
-        // Failsafe execution: If GSAP fails to load, the page still functions normally
         if (typeof gsap !== 'undefined') {
             gsap.registerPlugin(ScrollTrigger);
-
-            // Hero Init
             gsap.from(".gsap-hero", { opacity: 0, y: 30, duration: 1, stagger: 0.2, ease: "power3.out" });
-            
-            // Mouse Parallax Effect
+
             document.addEventListener("mousemove", (e) => {
                 const xOffset = (e.clientX / window.innerWidth - 0.5) * 50;
                 const yOffset = (e.clientY / window.innerHeight - 0.5) * 50;
-                gsap.to(".floating-piece", { 
-                    x: xOffset, y: yOffset, duration: 1.5, ease: "power2.out", stagger: 0.05 
-                });
+                gsap.to(".floating-piece", { x: xOffset, y: yOffset, duration: 1.5, ease: "power2.out", stagger: 0.05 });
             });
 
-            // Scroll Animations
             gsap.utils.toArray('.gsap-fade').forEach(el => {
                 gsap.from(el, { scrollTrigger: { trigger: el, start: "top 80%" }, opacity: 0, y: 20, duration: 0.8 });
             });
-            
             gsap.from(".gsap-fade-up", { scrollTrigger: { trigger: ".features", start: "top 75%" }, opacity: 0, y: 40, duration: 0.8, stagger: 0.2, ease: "power2.out" });
             gsap.from(".gsap-tech", { scrollTrigger: { trigger: ".tech-grid", start: "top 80%" }, opacity: 0, scale: 0.9, duration: 0.6, stagger: 0.15, ease: "back.out(1.5)" });
 
-            // Stats Counter
-            const numberCounter = gsap.utils.toArray('.stat-number')[0];
-            gsap.from(numberCounter, {
+            // FIX: Counter now animates to the real server-side value, not a hardcoded number
+            const eloEl = document.getElementById('stat-elo');
+            const eloTarget = parseInt(eloEl.textContent, 10);
+            gsap.from(eloEl, {
                 scrollTrigger: { trigger: ".stats-banner", start: "top 90%" },
                 textContent: 0,
                 duration: 2.5,
                 ease: "power2.out",
-                snap: { textContent: 1 } 
+                snap: { textContent: 1 },
+                onUpdate: function() { eloEl.textContent = Math.round(this.targets()[0].textContent); }
             });
         }
 
-        // --- AUTH LOGIC ---
         let currentMode = 'login';
-        
+
         function openAuth(mode) {
             currentMode = mode;
             document.getElementById('auth-modal').classList.add('active');
             document.getElementById('auth-error').style.display = 'none';
-            
             if (mode === 'register') {
                 document.getElementById('auth-title').innerText = "Create Account";
                 document.getElementById('username').style.display = "block";
@@ -340,15 +293,14 @@
 
         async function handleAuth(e) {
             e.preventDefault();
-            const email = document.getElementById('email').value;
+            const email    = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const username = document.getElementById('username').value;
             const errorMsg = document.getElementById('auth-error');
-            const btn = document.getElementById('auth-submit-btn');
+            const btn      = document.getElementById('auth-submit-btn');
 
             const endpoint = currentMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-            const payload = currentMode === 'login' ? { email, password } : { username, email, password };
-
+            const payload  = currentMode === 'login' ? { email, password } : { username, email, password };
             const originalText = btn.innerText;
             btn.innerText = "Processing...";
 
@@ -358,9 +310,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 const data = await response.json();
-
                 if (data.status === 'success') {
                     window.location.href = '/dashboard';
                 } else {
@@ -368,7 +318,7 @@
                     errorMsg.style.display = 'block';
                     btn.innerText = originalText;
                 }
-            } catch (err) {
+            } catch (_) {
                 errorMsg.innerText = "Server error. Try again later.";
                 errorMsg.style.display = 'block';
                 btn.innerText = originalText;

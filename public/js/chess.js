@@ -35,6 +35,16 @@ const FILES = 'abcdefgh';
 // --- UTILS ---
 function algToRC(sq) { return { r: 8 - parseInt(sq[1]), c: FILES.indexOf(sq[0]) }; }
 function rcToAlg(r, c) { return FILES[c] + (8 - r); }
+
+// FIX: Was called in game_over handler but never defined — caused a silent crash
+function findKingSquare(color) {
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (localBoard[r][c] === color + 'K') return rcToAlg(r, c);
+        }
+    }
+    return null;
+}
 function fenToBoardArray(fen) {
     const rows = fen.split(' ')[0].split('/');
     const board = [];
@@ -745,18 +755,26 @@ const chatBox = document.getElementById('chat-messages');
 const chatStorageKey = `chat_${partyCode}`;
 
 // Helper function to draw a message to the screen
+// FIX: replaced innerHTML with textContent to prevent XSS from malicious usernames/messages
 function appendChatMessage(data) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'chat-bubble';
-    
-    let nameColor = '#aaa'; 
-    if (data.color === 'w') nameColor = '#e8e6e3'; 
-    if (data.color === 'b') nameColor = '#81b64c'; // Matches your green theme
 
-    msgDiv.innerHTML = `<span style="color: ${nameColor}; font-weight: bold; margin-right: 5px;">${data.sender}:</span><span>${data.text}</span>`;
+    let nameColor = '#aaa';
+    if (data.color === 'w') nameColor = '#e8e6e3';
+    if (data.color === 'b') nameColor = '#81b64c';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = `color: ${nameColor}; font-weight: bold; margin-right: 5px;`;
+    nameSpan.textContent = data.sender + ':'; // textContent, never innerHTML
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = data.text; // textContent, never innerHTML
+
+    msgDiv.appendChild(nameSpan);
+    msgDiv.appendChild(textSpan);
     chatBox.appendChild(msgDiv);
-    
-    // Auto-scroll to bottom smoothly
+
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
 }
 

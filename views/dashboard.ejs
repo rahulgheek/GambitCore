@@ -6,21 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* --- GAMBITCORE OFFICIAL THEME VARIABLES --- */
         :root {
-            --bg: #1a1a1a;          /* Deep warm gray */
-            --card-bg: #262421;     /* Surface gray */
-            --card-inner: #1e1c1a;  /* Inset gray */
-            --border: #3c3a38;      /* Subtle divider */
-            --accent: #81b64c;      /* Chess.com/Gambit Green */
-            --accent-hover: #92c95e;
+            --bg: #1a1a1a; --card-bg: #262421; --card-inner: #1e1c1a;
+            --border: #3c3a38; --accent: #81b64c; --accent-hover: #92c95e;
             --accent-glow: rgba(129, 182, 76, 0.25);
-            --text-main: #ffffff;
-            --text-muted: #aaa;
+            --text-main: #ffffff; --text-muted: #aaa;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background-color: var(--bg); color: var(--text-main);
@@ -28,8 +21,6 @@
             background-image: radial-gradient(circle at 50% 0%, #2a2a2a 0%, #1a1a1a 70%);
             min-height: 100vh;
         }
-
-        /* --- GLASSMORPHISM NAVBAR --- */
         .glass-nav {
             position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
             display: flex; justify-content: space-between; align-items: center;
@@ -38,32 +29,14 @@
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border);
         }
-        
-        /* --- LOGO STYLING (Matched to Home Page) --- */
-        .logo {
-            font-family: 'Montserrat', sans-serif; 
-            font-size: 1.6rem; 
-            font-weight: 900;
-            color: white; 
-            text-decoration: none; 
-            letter-spacing: -1px;
-        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 900; color: white; text-decoration: none; letter-spacing: -1px; }
         .logo span { color: var(--accent); }
-        
         .nav-actions { display: flex; gap: 20px; align-items: center; }
-        .nav-link {
-            color: var(--text-muted); text-decoration: none; font-weight: 700;
-            transition: color 0.2s; font-size: 1.05rem;
-        }
+        .nav-link { color: var(--text-muted); text-decoration: none; font-weight: 700; transition: color 0.2s; font-size: 1.05rem; }
         .nav-link:hover { color: white; }
-        .logout-btn {
-            color: #ef4444; background: rgba(239, 68, 68, 0.1);
-            padding: 8px 16px; border-radius: 8px; font-weight: 700;
-            text-decoration: none; transition: all 0.2s; border: 1px solid transparent;
-        }
+        .logout-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 8px 16px; border-radius: 8px; font-weight: 700; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; }
         .logout-btn:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
 
-        /* --- BENTO BOX GRID LAYOUT --- */
         .dashboard-wrapper {
             max-width: 1200px; margin: 110px auto 40px; padding: 0 20px;
             display: grid; grid-template-columns: repeat(12, 1fr);
@@ -72,44 +45,27 @@
 
         .bento-card {
             background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 20px; padding: 32px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            position: relative; overflow: hidden;
-            display: flex; flex-direction: column;
+            border-radius: 20px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
         }
 
-        /* 1. HERO / PLAY CARD */
         .card-play { grid-column: span 8; justify-content: center; background: linear-gradient(135deg, #262421 0%, #1a1a1a 100%); }
         .hero-tag { display: inline-block; padding: 6px 12px; background: rgba(129, 182, 76, 0.15); color: var(--accent); border-radius: 20px; font-size: 0.85rem; font-weight: 800; letter-spacing: 1px; margin-bottom: 16px; text-transform: uppercase; }
         .hero-title { font-family: 'Montserrat', sans-serif; font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin-bottom: 16px; letter-spacing: -1px; }
-        .btn-glow {
-            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-            background: var(--accent); color: white; font-family: 'Montserrat', sans-serif; font-weight: 900;
-            font-size: 1.2rem; padding: 18px 40px; border-radius: 12px; text-decoration: none;
-            box-shadow: 0 6px 0 #537a31; transition: all 0.1s; border: none; cursor: pointer; width: fit-content;
-        }
+        .btn-glow { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: var(--accent); color: white; font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 1.2rem; padding: 18px 40px; border-radius: 12px; text-decoration: none; box-shadow: 0 6px 0 #537a31; transition: all 0.1s; border: none; cursor: pointer; width: fit-content; }
         .btn-glow:active { transform: translateY(6px); box-shadow: 0 0px 0 #537a31; }
 
-        /* 2. PROFILE CARD */
         .card-profile { grid-column: span 4; align-items: center; text-align: center; }
-        .profile-avatar {
-            width: 80px; height: 80px; background: var(--card-inner); border: 2px solid #555;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 45px; margin-bottom: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        }
+        .profile-avatar { width: 80px; height: 80px; background: var(--card-inner); border: 2px solid #555; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 45px; margin-bottom: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
         .profile-name { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; }
         .stat-group { display: flex; width: 100%; gap: 12px; }
         .stat-item { flex: 1; background: var(--card-inner); padding: 16px; border-radius: 12px; border: 1px solid var(--border); }
         .stat-value { font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--accent); }
         .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-top: 4px; letter-spacing: 1px; }
 
-        /* 3. LEADERBOARD CARD */
         .card-leaderboard { grid-column: span 7; }
-        .section-title { font-family: 'Montserrat', sans-serif; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; display: flex; justify-content: space-between; }
-        .lb-row {
-            display: flex; align-items: center; padding: 14px 16px; background: var(--card-inner);
-            border-radius: 10px; margin-bottom: 8px; transition: transform 0.2s; border: 1px solid transparent;
-        }
+        .section-title { font-family: 'Montserrat', sans-serif; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .lb-row { display: flex; align-items: center; padding: 14px 16px; background: var(--card-inner); border-radius: 10px; margin-bottom: 8px; transition: transform 0.2s; border: 1px solid transparent; }
         .lb-row:hover { transform: translateX(5px); border-color: var(--border); }
         .lb-rank { width: 40px; font-weight: 900; font-size: 1.1rem; color: var(--text-muted); }
         .lb-rank.gold { color: #f1c40f; text-shadow: 0 0 10px rgba(241,196,15,0.4); }
@@ -118,59 +74,49 @@
         .lb-user { flex: 1; font-weight: 700; font-size: 1.05rem; }
         .lb-elo { font-family: 'Montserrat', sans-serif; font-weight: 800; color: var(--accent); }
 
-        /* 4. EVAL INFO CARD */
         .card-info { grid-column: span 5; background: linear-gradient(135deg, rgba(129,182,76,0.05) 0%, transparent 100%); }
         .tech-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--card-inner); border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; font-weight: 700; margin: 0 8px 8px 0; }
         .tech-badge span { color: var(--accent); }
 
-        /* --- MODAL SPECIFIC CSS --- */
-        .btn-modern {
-            background: var(--card-inner); color: var(--text-main); border: 1px solid var(--border);
-            padding: 12px; border-radius: 10px; font-weight: 800; font-family: 'Montserrat';
-            cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;
-        }
+        .card-friends { grid-column: span 5; display: flex; flex-direction: column; max-height: 450px; }
+
+        .btn-modern { background: var(--card-inner); color: var(--text-main); border: 1px solid var(--border); padding: 12px; border-radius: 10px; font-weight: 800; font-family: 'Montserrat'; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .btn-modern:hover { background: #333; }
-        
-        .join-input {
-            background: #111; border: 1px solid var(--border); color: white; padding: 15px; 
-            border-radius: 10px; width: 100%; text-align: center; 
-            font-family: 'Nunito', sans-serif; font-size: 1.1rem; 
-            margin-bottom: 15px; transition: border 0.2s; outline: none;
-        }
+
+        .join-input { background: #111; border: 1px solid var(--border); color: white; padding: 15px; border-radius: 10px; width: 100%; font-family: 'Nunito', sans-serif; font-size: 1.1rem; margin-bottom: 15px; transition: border 0.2s; outline: none; }
         .join-input:focus { border-color: var(--accent); }
 
-        /* ============================================================
-           📱 RESPONSIVE GRID & MOBILE FIXES
-           ============================================================ */
+        /* Modal Base Classes */
+        .overlay-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .overlay-modal.open { display: flex; }
+
         @media (max-width: 1024px) {
-            .card-play, .card-profile, .card-leaderboard, .card-info { grid-column: span 12; }
+            .card-play, .card-profile, .card-leaderboard, .card-info, .card-friends { grid-column: span 12; }
             .card-profile { flex-direction: row; text-align: left; align-items: center; justify-content: space-between; }
             .profile-avatar { margin-bottom: 0; margin-right: 20px; }
             .stat-group { width: auto; min-width: 300px; }
+            .card-friends { max-height: 500px; }
         }
-        
         @media (max-width: 768px) {
             .glass-nav { padding: 15px 20px; flex-direction: column; gap: 15px; }
-            .dashboard-wrapper { margin-top: 130px; } /* Makes room for the stacked navbar */
-            
+            .dashboard-wrapper { margin-top: 130px; }
             .card-profile { flex-direction: column; text-align: center; justify-content: center; }
             .profile-avatar { margin-right: 0; margin-bottom: 16px; }
             .stat-group { flex-direction: column; min-width: 100%; }
-            
             .hero-title { font-size: 2.6rem; }
             .btn-glow { width: 100%; padding: 15px 20px; font-size: 1.1rem; }
             .bento-card { padding: 24px; }
         }
-        
         @media (max-width: 480px) {
             .hero-title { font-size: 2.2rem; }
             .bento-card { padding: 20px; }
             .logo { font-size: 1.6rem; }
-            .lb-user { font-size: 0.95rem; }
-            .lb-rank { width: 30px; font-size: 1rem; }
-            .section-title { font-size: 1.1rem; flex-direction: column; gap: 5px; }
         }
-    </style>
+
+        .challenge-time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+        .c-time-btn { background: #1e1c1a; border: 2px solid #3c3a38; border-radius: 8px; padding: 10px 5px; text-align: center; cursor: pointer; transition: 0.2s; font-family: 'Montserrat'; font-weight: 700; font-size: 0.9rem; color: #aaa; }
+        .c-time-btn.active { border-color: var(--accent); background: rgba(129,182,76,0.1); color: #fff; }
+        .c-time-btn:hover { border-color: #555; }
     </style>
 </head>
 <body>
@@ -184,15 +130,15 @@
     </nav>
 
     <main class="dashboard-wrapper">
-        
+
         <div class="bento-card card-play gsap-bento">
             <div style="position: relative; z-index: 2;">
                 <div class="hero-tag">Ranked Matchmaking</div>
                 <h1 class="hero-title">Your Next Move<br>Awaits.</h1>
                 <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 32px; max-width: 400px; font-weight: 600;">
-                    Enter the matchmaking queue or challenge a friend in a private room.
+                    Enter the matchmaking queue or review your past games.
                 </p>
-                <button class="btn-glow" onclick="window.location.href='/matchmaking'">
+                <button class="btn-glow" onclick="openPlayMenu()">
                     <span>♟</span> Play Chess
                 </button>
             </div>
@@ -201,9 +147,25 @@
 
         <div class="bento-card card-profile gsap-bento">
             <div style="display: flex; flex-direction: column; align-items: center;">
-                <div class="profile-avatar">♔</div>
+                <!-- HTML Update -->
+                <!-- The Clickable Avatar UI -->
+<div class="profile-avatar" style="position: relative; overflow: hidden; cursor: pointer; padding: 0;" onclick="document.getElementById('avatar-upload').click()">
+    
+    <% if (locals.avatar) { %>
+        <!-- position: absolute forces the image to ignore Flexbox and fill the parent -->
+        <img src="<%= avatar %>" id="user-avatar-img" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+    <% } else { %>
+        <span id="user-avatar-placeholder" style="font-size: 45px; position: relative; z-index: 1;">♔</span>
+    <% } %>
+    
+    <!-- Hover Overlay text -->
+    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; font-size: 0.6rem; font-weight: 800; padding: 5px 0; text-transform: uppercase; z-index: 2;">Edit</div>
+</div>
+
+<!-- Hidden File Input -->
+<input type="file" id="avatar-upload" style="display: none;" accept="image/png, image/jpeg, image/webp" onchange="handleAvatarUpload(event)">
                 <div class="profile-name">
-                    <%= username %> 
+                    <%= username %>
                     <span onclick="openEditModal()" style="cursor:pointer; font-size: 1.2rem; margin-left:12px; opacity:0.6; transition: 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">✏️</span>
                 </div>
             </div>
@@ -225,14 +187,12 @@
                 <span style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600; text-transform: uppercase;">Live Updates</span>
             </div>
             <div class="lb-container">
-                <% if (topPlayers && topPlayers.length > 0) { %>
+                <% if (typeof topPlayers !== 'undefined' && topPlayers.length > 0) { %>
                     <% topPlayers.forEach(function(player, index) { %>
                         <div class="lb-row gsap-lb-item">
-                            <div class="lb-rank <%= index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '' %>">
-                                #<%= index + 1 %>
-                            </div>
+                            <div class="lb-rank <%= index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '' %>">#<%= index + 1 %></div>
                             <div class="lb-user"><%= player.username %></div>
-                            <div class="lb-elo"><%= player.rating %></div>
+                            <div class="lb-elo"><%= Math.round(player.rating) %></div>
                         </div>
                     <% }); %>
                 <% } else { %>
@@ -242,7 +202,7 @@
         </div>
 
         <div class="bento-card card-info gsap-bento">
-            <div class="section-title">Evaluation II Status <span style="color: var(--accent);">Active</span></div>
+            <div class="section-title">Evaluation III Status <span style="color: var(--accent);">Active</span></div>
             <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; font-weight: 600;">
                 This dashboard is securely rendered Server-Side via Node.js & EJS. Real-time data is actively pulled from MongoDB Atlas.
             </p>
@@ -254,101 +214,521 @@
             </div>
         </div>
 
+        <div class="bento-card card-friends gsap-bento">
+            <div class="section-title">
+                🤝 Friends Hub
+                <button class="btn-modern" onclick="openAddFriendModal()" style="padding: 4px 10px; font-size: 0.8rem;">+ Add</button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; padding-right: 5px;" id="friends-container">
+                <p style="color: var(--text-muted); text-align: center; margin-top: 20px;">Loading friends...</p>
+            </div>
+            <div id="requests-container" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;"></div>
+        </div>
+
     </main>
 
-    <div class="modal-overlay hidden" id="edit-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); display:none; justify-content:center; align-items:center; z-index:2000;">
+    <div class="overlay-modal" id="play-hub-modal">
+        <div class="bento-card" style="width:95%; max-width:900px; max-height:90vh; overflow-y:auto; position:relative; border-color: var(--accent);">
+            <button onclick="closePlayMenu()" style="position:absolute; top:20px; right:25px; background:none; border:none; color:var(--text-muted); font-size:2rem; cursor:pointer; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-muted)'">×</button>
+
+            <h2 style="font-family:'Montserrat'; font-size: 2.5rem; text-align: center; margin-bottom: 10px;">Select Game Mode</h2>
+            <p style="text-align: center; color: var(--text-muted); margin-bottom: 30px; font-size: 1.1rem;">Choose how you want to play today.</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div style="text-align: center; padding: 30px 20px; background: var(--card-inner); border: 1px solid var(--border); border-radius: 15px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.borderColor='var(--accent)'; this.style.transform='translateY(-5px)'" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'" onclick="window.location.href='/matchmaking'">
+                    <div style="font-size: 3.5rem; margin-bottom: 15px;">🌍</div>
+                    <h3 style="font-family:'Montserrat'; font-size: 1.5rem; margin-bottom: 10px;">Play Online</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Ranked matchmaking queue.</p>
+                </div>
+
+                <div style="text-align: center; padding: 30px 20px; background: var(--card-inner); border: 1px solid var(--border); border-radius: 15px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.borderColor='var(--accent)'; this.style.transform='translateY(-5px)'" onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'" onclick="closePlayMenu(); openHistoryModal();">
+                    <div style="font-size: 3.5rem; margin-bottom: 15px;">📊</div>
+                    <h3 style="font-family:'Montserrat'; font-size: 1.5rem; margin-bottom: 10px;">Game Analysis</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Review past matches.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-modal" id="history-modal">
+        <div class="bento-card" style="width:95%; max-width:600px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-family:'Montserrat'; font-size: 1.8rem;">Match History</h2>
+                <button onclick="closeHistoryModal()" style="background:none; border:none; color:var(--text-muted); font-size:2rem; cursor:pointer;">×</button>
+            </div>
+            
+            <div id="history-list-container" style="flex: 1; overflow-y: auto; padding-right: 10px;">
+                <p style="color: var(--text-muted); text-align: center; margin-top: 20px;">Loading past games...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-modal" id="edit-modal">
         <div class="bento-card" id="edit-modal-card" style="width:90%; max-width:400px; text-align:center;">
             <h2 style="font-family:'Montserrat'; margin-bottom:10px;">Change Username</h2>
             <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Must be at least 3 characters.</p>
             <input type="text" id="new-name-input" class="join-input" placeholder="Enter new name" value="<%= username %>">
             <div style="display:flex; gap:10px;">
-                <button class="btn-glow" id="btn-save-name" onclick="submitNameChange()" style="flex:1; padding:12px; font-size:1.1rem; border-radius:10px; box-shadow: 0 4px 0 #537a31;">Save</button>
+                <button class="btn-glow" id="btn-save-name" onclick="submitNameChange()" style="flex:1; padding:12px; font-size:1.1rem; border-radius:10px;">Save</button>
                 <button class="btn-modern" onclick="closeEditModal()" style="flex:1;">Cancel</button>
             </div>
         </div>
     </div>
 
+    <div class="overlay-modal" id="add-friend-modal">
+        <div class="bento-card" style="width:90%; max-width:400px; display: flex; flex-direction: column; max-height: 80vh;">
+            <h2 style="font-family:'Montserrat'; margin-bottom:10px; text-align: center;">Find Friends</h2>
+            <input type="text" id="friend-search-input" class="join-input" placeholder="Type a username..." oninput="searchUsers()">
+            <div id="search-results-container" style="flex: 1; overflow-y: auto; text-align: left; margin-bottom: 15px; padding-right: 5px;">
+                <p style="color: var(--text-muted); text-align: center; margin-top: 10px;">Type at least 3 letters...</p>
+            </div>
+            <button class="btn-modern" onclick="closeAddFriendModal()" style="width: 100%;">Close</button>
+        </div>
+    </div>
+
+    <div class="overlay-modal" id="challenge-modal">
+        <div class="bento-card" style="width:90%; max-width:450px; text-align:center; border-color: var(--accent); box-shadow: 0 0 40px rgba(129, 182, 76, 0.3);">
+            <div style="font-size: 4rem; margin-bottom: 10px;">⚔️</div>
+            <h2 style="font-family:'Montserrat'; font-size: 2rem; margin-bottom:10px; color: #fff;">Incoming Challenge!</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 1.2rem;">
+                <span id="challenger-name" style="color: var(--accent); font-weight: 800;">Username</span>
+                wants to play a <span id="challenge-time" style="color: #fff; font-weight: bold;">10</span> min game.
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 18px;">
+                Auto-declining in <span id="challenge-countdown" style="color: #fff; font-weight: bold;">30</span>s
+            </p>
+            <div style="display:flex; gap:15px;">
+                <button class="btn-glow" id="btn-accept-challenge" style="flex:2; padding:15px; font-size:1.2rem; border-radius:12px;">Accept</button>
+                <button class="btn-modern" id="btn-decline-challenge" style="flex:1;">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-modal" id="send-challenge-modal">
+        <div class="bento-card" style="width:90%; max-width:400px; text-align:center;">
+            <h2 style="font-family:'Montserrat'; margin-bottom:8px;">Challenge <span id="challenge-target-name" style="color:var(--accent)"></span></h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 18px;">Select a time control</p>
+            <div class="challenge-time-grid" id="challenge-time-grid">
+                <div class="c-time-btn active" data-mins="3">3 min</div>
+                <div class="c-time-btn active" data-mins="5" style="border-color:#3c3a38; background:#1e1c1a; color:#aaa;">5 min</div>
+                <div class="c-time-btn" data-mins="10" style="border-color:var(--accent); background:rgba(129,182,76,0.1); color:#fff;">10 min</div>
+                <div class="c-time-btn" data-mins="30" style="border-color:#3c3a38; background:#1e1c1a; color:#aaa;">30 min</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-glow" id="btn-send-challenge-confirm" style="flex:2; padding:14px;">Send Challenge ⚔️</button>
+                <button class="btn-modern" onclick="closeSendChallengeModal()" style="flex:1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Safely parse EJS variables to prevent NaN crashes
-        const targetElo = parseInt("<%= rating || 0 %>", 10);
-        const targetGames = parseInt("<%= gamesPlayed || 0 %>", 10);
+        const targetElo   = parseInt(<%- JSON.stringify(typeof rating !== 'undefined' ? rating : 1500) %>, 10);
+        const targetGames = parseInt(<%- JSON.stringify(typeof gamesPlayed !== 'undefined' ? gamesPlayed : 0) %>, 10);
+        const socket = io();
+        const myUsername = <%- JSON.stringify(username) %>;
+
+        let searchTimeout = null;
+        let challengeCountdownInterval = null;
+        let challengeSelectedTime = 10; 
+        let pendingChallengeTarget = null;
+
+        socket.emit('user_online');
 
         document.addEventListener("DOMContentLoaded", () => {
-            // 1. Drop down the glass navbar
-            gsap.from(".gsap-nav", { y: -100, opacity: 0, duration: 1, ease: "power4.out" });
+            if (typeof gsap !== 'undefined') {
+                gsap.from(".gsap-nav",    { y: -100, opacity: 0, duration: 1, ease: "power4.out" });
+                gsap.from(".gsap-bento",  { y: 40, opacity: 0, scale: 0.95, duration: 0.8, stagger: 0.15, ease: "back.out(1.2)", delay: 0.2 });
+                gsap.from(".gsap-lb-item",{ x: -20, opacity: 0, duration: 0.5, stagger: 0.1, ease: "power2.out", delay: 0.7 });
+                gsap.to("#count-elo",   { textContent: targetElo,   duration: 2, ease: "power3.out", snap: { textContent: 1 }, delay: 0.6 });
+                gsap.to("#count-games", { textContent: targetGames, duration: 2, ease: "power3.out", snap: { textContent: 1 }, delay: 0.6 });
+            }
+            fetchFriends();
 
-            // 2. Bento cards pop in using stagger
-            gsap.from(".gsap-bento", { 
-                y: 40, opacity: 0, scale: 0.95, 
-                duration: 0.8, stagger: 0.15, 
-                ease: "back.out(1.2)", delay: 0.2 
+            document.querySelectorAll('.c-time-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.c-time-btn').forEach(b => {
+                        b.classList.remove('active');
+                        b.style.borderColor = '#3c3a38';
+                        b.style.background  = '#1e1c1a';
+                        b.style.color       = '#aaa';
+                    });
+                    btn.classList.add('active');
+                    btn.style.borderColor = 'var(--accent)';
+                    btn.style.background  = 'rgba(129,182,76,0.1)';
+                    btn.style.color       = '#fff';
+                    challengeSelectedTime = parseInt(btn.dataset.mins);
+                });
             });
 
-            // 3. Leaderboard rows slide in
-            gsap.from(".gsap-lb-item", { 
-                x: -20, opacity: 0, 
-                duration: 0.5, stagger: 0.1, 
-                ease: "power2.out", delay: 0.7 
-            });
-
-            // 4. Number Counters
-            gsap.to("#count-elo", { 
-                textContent: targetElo, duration: 2, 
-                ease: "power3.out", snap: { textContent: 1 }, delay: 0.6 
-            });
-            gsap.to("#count-games", { 
-                textContent: targetGames, duration: 2, 
-                ease: "power3.out", snap: { textContent: 1 }, delay: 0.6 
-            });
+            document.getElementById('btn-decline-challenge').addEventListener('click', closeIncomingChallenge);
         });
 
-        // --- EDIT MODAL JAVASCRIPT LOGIC ---
-        function openEditModal() {
-            const modal = document.getElementById('edit-modal');
-            const card = document.getElementById('edit-modal-card');
-            modal.style.display = 'flex';
-            gsap.fromTo(modal, {opacity: 0}, {opacity: 1, duration: 0.2});
-            gsap.fromTo(card, {scale: 0.8, y: 20}, {scale: 1, y: 0, duration: 0.4, ease: "back.out(1.2)"});
+        // ── NEW: PLAY HUB & HISTORY LOGIC ─────────────────────────
+        function openPlayMenu() {
+            document.getElementById('play-hub-modal').classList.add('open');
+            if (typeof gsap !== 'undefined') {
+                gsap.fromTo('#play-hub-modal .bento-card', { scale: 0.9, y: 30 }, { scale: 1, y: 0, duration: 0.4, ease: "back.out(1.2)" });
+            }
         }
 
-        function closeEditModal() {
-            const modal = document.getElementById('edit-modal');
-            gsap.to(modal, {opacity: 0, duration: 0.2, onComplete: () => {
-                modal.style.display = 'none';
-            }});
+        function closePlayMenu() {
+            document.getElementById('play-hub-modal').classList.remove('open');
         }
 
-        async function submitNameChange() {
-            const newName = document.getElementById('new-name-input').value.trim();
-            const btn = document.getElementById('btn-save-name');
+        function openHistoryModal() {
+            document.getElementById('history-modal').classList.add('open');
+            fetchMatchHistory();
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('history-modal').classList.remove('open');
+        }
+
+        async function fetchMatchHistory() {
+            const container = document.getElementById('history-list-container');
+            container.innerHTML = '<p style="color: var(--accent); text-align: center; margin-top: 20px;">Loading...</p>';
             
-            if (newName.length < 3) {
-                alert("Name must be at least 3 characters.");
+            try {
+                const res = await fetch('/api/games/history');
+                const data = await res.json();
+                
+                container.innerHTML = '';
+                
+                if (!data.games || data.games.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No matches played yet.</p>';
+                    return;
+                }
+
+                data.games.forEach(game => {
+                    let resultColor = 'var(--text-muted)';
+                    let resultText = 'DRAW';
+                    
+                    const isWhite = game.whitePlayer === myUsername;
+                    if (game.winner === 'w' && isWhite) { resultColor = 'var(--accent)'; resultText = 'VICTORY'; }
+                    else if (game.winner === 'b' && !isWhite) { resultColor = 'var(--accent)'; resultText = 'VICTORY'; }
+                    else if (game.winner !== 'draw') { resultColor = '#ef4444'; resultText = 'DEFEAT'; }
+
+                    const date = new Date(game.playedAt).toLocaleDateString();
+
+                    container.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding: 15px; background: #111; margin-bottom: 10px; border-radius: 10px; border-left: 4px solid ${resultColor}; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+                            <div>
+                                <div style="font-weight: 800; color: ${resultColor}; font-size: 0.9rem; margin-bottom: 4px;">${resultText} <span style="color: var(--text-muted); font-weight: normal; margin-left: 8px;">${date}</span></div>
+                                <div style="font-size: 1.1rem; color: #fff;">
+                                    <span style="${isWhite ? 'font-weight:bold' : ''}">${game.whitePlayer}</span> 
+                                    <span style="color:var(--text-muted); margin: 0 5px;">vs</span> 
+                                    <span style="${!isWhite ? 'font-weight:bold' : ''}">${game.blackPlayer}</span>
+                                </div>
+                            </div>
+                            <button class="btn-modern" onclick="window.location.href='/analyze/${game._id}'" style="padding: 8px 16px; font-size: 0.9rem;">Analyze 📊</button>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                container.innerHTML = '<p style="color: #ef4444; text-align: center;">Failed to load history.</p>';
+            }
+        }
+
+        // JavaScript Update
+        async function handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Optional: Check file size (e.g., limit to 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert("Image must be smaller than 5MB.");
                 return;
             }
 
-            const originalText = btn.innerText;
-            btn.innerText = "Saving...";
+            // Prepare form data for Multer
+            const formData = new FormData();
+            formData.append('avatar', file);
 
             try {
-                const response = await fetch('/api/user/update-name', {
+                // Visual feedback during upload
+                const avatarContainer = document.querySelector('.profile-avatar');
+                avatarContainer.style.opacity = '0.5';
+
+                const res = await fetch('/api/user/avatar', {
+                    method: 'POST',
+                    body: formData 
+                    // Note: DO NOT set 'Content-Type' header manually when sending FormData. Let the browser set the boundary automatically.
+                });
+                
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    // Hot-swap the image instantly without reloading the page!
+                    window.location.reload(); 
+                } else {
+                    alert(data.message || "Upload failed.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Server error during upload.");
+            } finally {
+                document.querySelector('.profile-avatar').style.opacity = '1';
+            }
+        }
+
+        // ── FRIENDS HUB ───────────────────────────────────────────
+        async function fetchFriends() {
+            try {
+                const res  = await fetch('/api/friends');
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await res.json();
+
+                const fContainer = document.getElementById('friends-container');
+                const rContainer = document.getElementById('requests-container');
+                fContainer.innerHTML = '';
+                rContainer.innerHTML = '';
+
+                if (data.friends && data.friends.length > 0) {
+                    data.friends.forEach(f => {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding: 12px; background: var(--card-inner); margin-bottom: 8px; border-radius: 8px;';
+
+                        const info = document.createElement('div');
+                        const nameEl = document.createElement('strong');
+                        nameEl.style.fontSize = '1.1rem';
+                        nameEl.textContent = f.username; 
+
+                        const eloEl = document.createElement('div');
+                        eloEl.style.cssText = 'font-size: 0.8rem; color: var(--accent);';
+                        eloEl.textContent = 'Elo: ' + Math.round(f.rating);
+
+                        info.appendChild(nameEl);
+                        info.appendChild(eloEl);
+
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-glow';
+                        btn.style.cssText = 'padding: 6px 14px; font-size: 0.9rem; box-shadow: none;';
+                        btn.textContent = 'Play';
+                        btn.addEventListener('click', () => openSendChallengeModal(f.username));
+
+                        row.appendChild(info);
+                        row.appendChild(btn);
+                        fContainer.appendChild(row);
+                    });
+                } else {
+                    fContainer.innerHTML = '<p style="color: #666; text-align:center; margin-top: 10px;">No friends yet.</p>';
+                }
+
+                if (data.requests && data.requests.length > 0) {
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-size: 0.9rem; font-weight: bold; margin-bottom: 10px; color: var(--text-muted);';
+                    header.textContent = 'Pending Requests';
+                    rContainer.appendChild(header);
+
+                    data.requests.forEach(req => {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding: 10px; background: #111; border: 1px dashed var(--accent); margin-bottom: 8px; border-radius: 8px;';
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = req.username; 
+
+                        const acceptBtn = document.createElement('button');
+                        acceptBtn.className = 'btn-modern';
+                        acceptBtn.style.cssText = 'padding: 6px 12px; font-size: 0.8rem; color: var(--accent); border-color: var(--accent);';
+                        acceptBtn.textContent = 'Accept';
+                        acceptBtn.addEventListener('click', () => acceptRequest(req.username));
+
+                        row.appendChild(nameSpan);
+                        row.appendChild(acceptBtn);
+                        rContainer.appendChild(row);
+                    });
+                }
+            } catch (err) { console.error('Error fetching friends:', err); }
+        }
+
+        // ── FRIEND SEARCH ─────────────────────────────────────────
+        function openAddFriendModal()  { document.getElementById('add-friend-modal').classList.add('open'); }
+        function closeAddFriendModal() { document.getElementById('add-friend-modal').classList.remove('open'); }
+
+        async function searchUsers() {
+            const query = document.getElementById('friend-search-input').value;
+            const resultsContainer = document.getElementById('search-results-container');
+
+            if (query.length < 3) {
+                resultsContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 10px;">Type at least 3 letters...</p>';
+                return;
+            }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                resultsContainer.innerHTML = '<p style="color: var(--accent); text-align: center; margin-top: 10px;">Searching...</p>';
+                try {
+                    const res  = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    resultsContainer.innerHTML = '';
+
+                    if (!data.users || data.users.length === 0) {
+                        resultsContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 10px;">No players found.</p>';
+                        return;
+                    }
+
+                    data.users.forEach(u => {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding: 12px; background: #111; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border);';
+
+                        const info = document.createElement('div');
+                        const nameEl = document.createElement('strong');
+                        nameEl.style.cssText = 'font-size: 1.1rem; color: #fff;';
+                        nameEl.textContent = u.username;
+
+                        const eloEl = document.createElement('div');
+                        eloEl.style.cssText = 'font-size: 0.8rem; color: var(--accent);';
+                        eloEl.textContent = 'Elo: ' + Math.round(u.rating);
+
+                        info.appendChild(nameEl);
+                        info.appendChild(eloEl);
+
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-glow';
+                        btn.style.cssText = 'padding: 6px 14px; font-size: 0.9rem; box-shadow: none;';
+                        btn.textContent = '+ Add';
+                        btn.addEventListener('click', () => sendFriendRequest(u.username));
+
+                        row.appendChild(info);
+                        row.appendChild(btn);
+                        resultsContainer.appendChild(row);
+                    });
+                } catch (_) {
+                    resultsContainer.innerHTML = '<p style="color: #ef4444; text-align: center; margin-top: 10px;">Search failed.</p>';
+                }
+            }, 300);
+        }
+
+        async function sendFriendRequest(targetUsername) {
+            try {
+                const res  = await fetch('/api/friends/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ targetUsername })
+                });
+                const data = await res.json();
+                alert(data.message);
+                fetchFriends();
+            } catch (_) { alert('Something went wrong.'); }
+        }
+
+        async function acceptRequest(senderUsername) {
+            try {
+                await fetch('/api/friends/accept', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderUsername })
+                });
+                fetchFriends();
+            } catch (err) { console.error(err); }
+        }
+
+        // ── SEND CHALLENGE MODAL (outgoing) ───────────────────────
+        function openSendChallengeModal(targetUsername) {
+            pendingChallengeTarget = targetUsername;
+            document.getElementById('challenge-target-name').textContent = targetUsername; 
+
+            challengeSelectedTime = 10;
+            document.querySelectorAll('.c-time-btn').forEach(btn => {
+                const isDefault = parseInt(btn.dataset.mins) === 10;
+                btn.classList.toggle('active', isDefault);
+                btn.style.borderColor = isDefault ? 'var(--accent)' : '#3c3a38';
+                btn.style.background  = isDefault ? 'rgba(129,182,76,0.1)' : '#1e1c1a';
+                btn.style.color       = isDefault ? '#fff' : '#aaa';
+            });
+
+            document.getElementById('send-challenge-modal').classList.add('open');
+        }
+
+        function closeSendChallengeModal() {
+            document.getElementById('send-challenge-modal').classList.remove('open');
+            pendingChallengeTarget = null;
+        }
+
+        document.getElementById('btn-send-challenge-confirm')?.addEventListener('click', () => {
+            if (!pendingChallengeTarget) return;
+            socket.emit('challenge_friend', { targetUsername: pendingChallengeTarget, timeControl: challengeSelectedTime });
+            closeSendChallengeModal();
+        });
+
+        // ── CHALLENGE HANDLERS ────────────────────────────────────
+        socket.on('challenge_sent', (data) => {
+            const { roomCode } = data;
+            window.location.href = `/play/${roomCode}?time=${challengeSelectedTime}`;
+        });
+
+        socket.on('error', (message) => {
+            alert(message);
+        });
+
+        function closeIncomingChallenge() {
+            clearInterval(challengeCountdownInterval);
+            document.getElementById('challenge-modal').classList.remove('open');
+        }
+
+        socket.on('incoming_challenge', (data) => {
+            const { from, timeControl, roomCode } = data;
+
+            document.getElementById('challenger-name').textContent = from;
+            document.getElementById('challenge-time').textContent  = timeControl;
+            document.getElementById('challenge-modal').classList.add('open');
+
+            let secondsLeft = 30;
+            document.getElementById('challenge-countdown').textContent = secondsLeft;
+            clearInterval(challengeCountdownInterval);
+            challengeCountdownInterval = setInterval(() => {
+                secondsLeft--;
+                const el = document.getElementById('challenge-countdown');
+                if (el) el.textContent = secondsLeft;
+                if (secondsLeft <= 0) {
+                    clearInterval(challengeCountdownInterval);
+                    document.getElementById('challenge-modal').classList.remove('open');
+                }
+            }, 1000);
+
+            document.getElementById('btn-accept-challenge').onclick = () => {
+                clearInterval(challengeCountdownInterval);
+                window.location.href = `/play/${roomCode}?time=${timeControl}`;
+            };
+        });
+
+        // ── EDIT NAME ─────────────────────────────────────────────
+        function openEditModal() {
+            const modal = document.getElementById('edit-modal');
+            modal.classList.add('open');
+            if (typeof gsap !== 'undefined') {
+                gsap.fromTo('#edit-modal-card', { scale: 0.85, y: 20 }, { scale: 1, y: 0, duration: 0.35, ease: 'back.out(1.2)' });
+            }
+        }
+
+        function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+        async function submitNameChange() {
+            const newName = document.getElementById('new-name-input').value.trim();
+            const btn     = document.getElementById('btn-save-name');
+            if (newName.length < 3) return alert('Name must be at least 3 characters.');
+
+            const original = btn.innerText;
+            btn.innerText = 'Saving...';
+            try {
+                const res  = await fetch('/api/user/update-name', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ newUsername: newName })
                 });
-
-                const data = await response.json();
-                
+                const data = await res.json();
                 if (data.status === 'success') {
-                    // Success! Refresh the page to reflect the new name in the UI and Navbar
                     window.location.reload();
                 } else {
                     alert(data.message || 'Could not update name.');
-                    btn.innerText = originalText;
+                    btn.innerText = original;
                 }
-            } catch (err) {
-                alert('Server error. Ensure your backend route is set up!');
-                btn.innerText = originalText;
+            } catch (_) {
+                alert('Server error.');
+                btn.innerText = original;
             }
         }
     </script>
