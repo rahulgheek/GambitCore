@@ -41,10 +41,14 @@ async function updatePlayerRatingsAfterGame(whiteUsername, blackUsername, winner
         whitePlayer.vol       = newStats.updatedP1.vol;
         whitePlayer.gamesPlayed += 1;
 
+        if(whitePlayer.rating < 100) whitePlayer.rating = 100;
+
         blackPlayer.rating    = Math.round(newStats.updatedP2.rating);
         blackPlayer.rd        = Math.round(newStats.updatedP2.rd);
         blackPlayer.vol       = newStats.updatedP2.vol;
         blackPlayer.gamesPlayed += 1;
+
+        if(blackPlayer.rating < 100) blackPlayer.rating = 100;
 
         await whitePlayer.save();
         await blackPlayer.save();

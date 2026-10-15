@@ -1,6 +1,3 @@
-/**
- * Strip all HTML-dangerous characters for safe client display.
- */
 function sanitizeText(str) {
     if (typeof str !== 'string') return '';
     return str.replace(/[<>&"'\/]/g, (c) => ({
